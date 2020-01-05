@@ -673,6 +673,7 @@ void HAP_aes_ctr_done(HAP_aes_ctr_ctx* ctx) {
     handle->ctx = NULL;
 }
 
+extern int mg_ssl_if_mbed_random(void *ctx, unsigned char *buf, size_t len);
 void HAP_rand(uint8_t* buffer, size_t n) {
-    arc4random_buf(buffer, n);
+    mg_ssl_if_mbed_random(NULL, buffer, n);
 }
