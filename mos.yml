@@ -2,7 +2,6 @@ author: 'Deomid "rojer" Ryabkov'
 description: Port of HomeKitADK to Mongoose OS
 type: lib
 version: 0.0.1
-platforms: [esp8266]
 
 # Upstream commit: https://github.com/apple/HomeKitADK/commit/0146aa36c16f121e780ded6f608f0580adf24f80
 

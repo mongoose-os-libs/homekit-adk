@@ -20,11 +20,7 @@ extern "C" {
 /**@file
  * File system based key-value store.
  *
- * The implementation uses the filesystem to store data persistently.
- * Each `HAPPlatformKeyValueStoreKey` is mapped to a file within a configurable directory.
- *
- * Data writes and deletions are persisted in a blocking manner using `fsync`.
- * This guarantees atomicity in case of power failure.
+ * The implementation uses a JSON file to store data.
  *
  * **Example**
 
@@ -34,9 +30,9 @@ extern "C" {
    static HAPPlatformKeyValueStore keyValueStore;
 
    // Initialize key-value store.
-   HAPPlatformKeyValueStoreCreate(&platform.keyValueStore,
+   HAPPlatformKeyValueStoreCreate(&keyValueStore,
        &(const HAPPlatformKeyValueStoreOptions) {
-           .rootDirectory = ".HomeKitStore" // May be changed to store into a different directory.
+           .fileName = "kv.json"
        });
 
    @endcode
@@ -46,13 +42,7 @@ extern "C" {
  * Key-value store initialization options.
  */
 typedef struct {
-    /**
-     * Root directory into which the values will be stored as files.
-     *
-     * - This directory is relative to the directory from which the application is executing,
-     *   i.e. not relative to the application binary.
-     */
-    const char* rootDirectory;
+    const char* fileName;
 } HAPPlatformKeyValueStoreOptions;
 
 /**
@@ -61,7 +51,7 @@ typedef struct {
 struct HAPPlatformKeyValueStore {
     // Opaque type. Do not access the instance fields directly.
     /**@cond */
-    const char* rootDirectory;
+    void* ctx;
     /**@endcond */
 };
 
