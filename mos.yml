@@ -1,0 +1,33 @@
+author: 'Deomid "rojer" Ryabkov'
+description: Port of HomeKitADK to Mongoose OS
+type: lib
+version: 0.0.1
+platforms: [esp8266]
+
+# Upstream commit: https://github.com/apple/HomeKitADK/commit/0146aa36c16f121e780ded6f608f0580adf24f80
+
+sources:
+  - HomeKitADK/HAP
+  - HomeKitADK/PAL
+  - HomeKitADK/PAL/Crypto/MbedTLS
+  - HomeKitADK/External/Base64
+  - HomeKitADK/External/HTTP
+  - HomeKitADK/External/JSON
+  - src
+  - src/PAL
+  - src/${platform}
+
+includes:
+  - HomeKitADK/HAP
+  - src/PAL
+
+libs:
+  - origin: https://github.com/mongoose-os-libs/core
+  - origin: https://github.com/mongoose-os-libs/dns-sd
+  - origin: https://github.com/mongoose-os-libs/mbedtls
+
+tags:
+  - c
+  - homekit
+
+manifest_version: 2018-06-12
