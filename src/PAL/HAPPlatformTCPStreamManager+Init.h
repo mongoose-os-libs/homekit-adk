@@ -18,11 +18,10 @@ extern "C" {
 #endif
 
 /**@file
- * TCP stream manager implementation for POSIX.
+ * TCP stream manager implementation for Mongoose OS.
  *
- * The following limitations apply if this code is not modified:
- * - Non-null values for the option interfaceName are ignored on platforms without support for the socket option
- *   SO_BINDTODEVICE which binds the socket to a particular network interface.
+ * The following limitations apply:
+ * - kHAPNetworkPort_Any is not supported, port has to be specified explicitly.
  *
  * **Example**
 
@@ -33,11 +32,7 @@ extern "C" {
    // Initialize TCP stream manager object.
    HAPPlatformTCPStreamManagerCreate(&platform.tcpStreamManager,
        &(const HAPPlatformTCPStreamManagerOptions) {
-           // Listen on all available network interfaces.
-           .interfaceName = NULL,
-
-           // Listen on an unused port number from the ephemeral port range.
-           .port = kHAPNetworkPort_Any,
+           .port = 8080,
 
            // Allocate enough concurrent TCP streams to support the IP accessory.
            .maxConcurrentTCPStreams = kHAPIPSessionStorage_DefaultNumElements
@@ -53,7 +48,7 @@ typedef struct {
     /**
      * Local port number on which to bind the TCP stream manager.
      *
-     * - A value of kHAPNetworkPort_Any will use an unused port number from the ephemeral port range.
+     * Note: kHAPNetworkPort_Any is not supportedon Mongoose OS, use a specific value.
      */
     HAPNetworkPort port;
 
@@ -63,21 +58,12 @@ typedef struct {
     size_t maxConcurrentTCPStreams;
 } HAPPlatformTCPStreamManagerOptions;
 
-// Opaque type. Do not use directly.
-/**@cond */
-typedef struct {
-    HAPPlatformTCPStreamManagerRef tcpStreamManager;
-
-    HAPPlatformTCPStreamListenerCallback _Nullable callback;
-    void* _Nullable context;
-} HAPPlatformTCPStreamListener;
-/**@endcond */
+struct mg_connection;
 
 // Opaque type. Do not use directly.
 /**@cond */
 typedef struct {
-    HAPPlatformTCPStreamManagerRef tcpStreamManager;
-
+    struct mg_connection* nc;
     HAPPlatformTCPStreamEvent interests;
     HAPPlatformTCPStreamEventCallback _Nullable callback;
     void* _Nullable context;
@@ -90,11 +76,14 @@ typedef struct {
 struct HAPPlatformTCPStreamManager {
     // Opaque type. Do not access the instance fields directly.
     /**@cond */
+    struct mg_connection* listener;
+    HAPPlatformTCPStreamListenerCallback listenerCallback;
+    void* listenerCallbackContext;
+
     size_t numTCPStreams;
     size_t maxTCPStreams;
 
     HAPNetworkPort port;
-    HAPPlatformTCPStream* _Nullable tcpStreams;
     /**@endcond */
 };
 
