@@ -22,6 +22,8 @@
 #include <cstring>
 #include <string>
 
+#include "mgos.h"
+
 class KVStore {
 public:
     explicit KVStore(const char* fileName);
@@ -60,11 +62,11 @@ KVStore::KVStore(const char* fileName)
 }
 
 void KVStore::Load() {
-    // TODO
+    LOG(LL_ERROR, ("TODO: Implement KVStore::Load"));
 }
 
 HAPError KVStore::Save() {
-    // TODO
+    LOG(LL_ERROR, ("TODO: Implement KVStore::Save"));
     return kHAPError_None;
 }
 

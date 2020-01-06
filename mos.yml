@@ -17,8 +17,8 @@ sources:
   - src/${platform}
 
 includes:
+  - include
   - HomeKitADK/HAP
-  - src/PAL
 
 libs:
   - origin: https://github.com/mongoose-os-libs/core

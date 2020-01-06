@@ -54,10 +54,7 @@ extern "C" {
  * Accessory setup manager initialization options.
  */
 typedef struct {
-    /**
-     * Key-value store.
-     */
-    HAPPlatformKeyValueStoreRef keyValueStore;
+    // Noothing.
 } HAPPlatformAccessorySetupOptions;
 
 /**
@@ -65,9 +62,6 @@ typedef struct {
  */
 struct HAPPlatformAccessorySetup {
     // Opaque type. Do not access the instance fields directly.
-    /**@cond */
-    HAPPlatformKeyValueStoreRef keyValueStore;
-    /**@endcond */
 };
 
 /**
