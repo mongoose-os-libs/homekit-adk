@@ -30,8 +30,6 @@ extern "C" {
    // Initialize service discovery object. Depends on a TCP stream manager instance.
    HAPPlatformServiceDiscoveryCreate(&platform.serviceDiscovery,
        &(const HAPPlatformServiceDiscoveryOptions) {
-           // Register services on all available network interfaces.
-           .interfaceName = NULL
        });
 
    @endcode
@@ -54,6 +52,9 @@ typedef struct {
 struct HAPPlatformServiceDiscovery {
     // Opaque type. Do not access the instance fields directly.
     /**@cond */
+    const char* name;
+    const char* protocol;
+    HAPNetworkPort port;
     /**@endcond */
 };
 
