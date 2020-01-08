@@ -87,5 +87,6 @@ void HAPPlatformAccessorySetupNFCUpdateSetupPayload(
 }
 
 bool mgos_homekit_adk_init(void) {
+    mgos_event_register_base(MGOS_HAP_EV_BASE, "HAP");
     return true;
 }
