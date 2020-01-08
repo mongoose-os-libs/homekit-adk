@@ -23,10 +23,12 @@ extern "C" {
 // 2 - Logs with type Info, Default, Error and Fault are emitted.
 // 3 - Logs with type Debug, Info, Default, Error and Fault are emitted. All logs.
 #ifndef HAP_LOG_LEVEL
-#define HAP_LOG_LEVEL (0)
-#endif
+int HAPPlatformLogLevel(void);
+#define HAP_LOG_LEVEL HAPPlatformLogLevel()
+#else
 #if HAP_LOG_LEVEL < 0 || HAP_LOG_LEVEL > 3
 #error "Invalid HAP_LOG_LEVEL."
+#endif
 #endif
 
 // Validate flag for including sensitive information in logs.
