@@ -25,6 +25,12 @@ libs:
   - origin: https://github.com/mongoose-os-libs/dns-sd
   - origin: https://github.com/mongoose-os-libs/mbedtls
 
+cdefs:
+  # These save quite a bit of space.
+  # App can override back to 0 if needed.
+  HAP_DISABLE_ASSERTS: 1
+  HAP_DISABLE_PRECONDITIONS: 1
+
 tags:
   - c
   - homekit
