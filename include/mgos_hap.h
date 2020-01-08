@@ -91,3 +91,13 @@ struct mgos_hap_nfc_update_setup_payload_arg {
     const HAPSetupPayload* setupPayload;
     bool isPairable;
 };
+
+/*
+ * Load salt and verifier from strings.
+ * Both can be either hex or base4 encoded.
+ */
+bool mgos_hap_setup_info_from_string(HAPSetupInfo *setupInfo, const char *salt, const char *verifier);
+
+#ifdef MGOS_HAVE_RPC_COMMON
+void mgos_hap_add_rpc_service(void);
+#endif

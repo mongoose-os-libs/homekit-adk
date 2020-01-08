@@ -25,6 +25,31 @@ libs:
   - origin: https://github.com/mongoose-os-libs/dns-sd
   - origin: https://github.com/mongoose-os-libs/mbedtls
 
+init_after:
+  - rpc-common
+
+build_vars:
+  # Override this to 0 to disable setup info configuration settings.
+  MGOS_HAP_SIMPLE_CONFIG: 1
+
+config_schema:
+  - ["dns_sd.enable", true]
+
+conds:
+  - when: build_vars.MGOS_HAP_SIMPLE_CONFIG == "1"
+    apply:
+      config_schema:
+        # Setup code must not be stored in plain text on the device.
+        # Salt is a random 16-byte value and verifier is generated
+        # from setup code + salt by the AccessorySetupGenerator tool.
+        # Here they can be specified as either hex or base64 encoded string.
+        - ["hap", "o", {"title": "HAP settings"}]
+        - ["hap.salt", "s", "", {"title": "Device verifier salt"}]
+        - ["hap.verifier", "s", "", {"title": "Device verifier"}]
+      cdefs:
+        MGOS_HAP_SIMPLE_CONFIG: 1
+
+
 cdefs:
   # These save quite a bit of space.
   # App can override back to 0 if needed.
