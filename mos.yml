@@ -34,6 +34,7 @@ build_vars:
 
 config_schema:
   - ["dns_sd.enable", true]
+  - ["dns_sd.host_name", ""]  # Use device.id
 
 conds:
   - when: build_vars.MGOS_HAP_SIMPLE_CONFIG == "1"
