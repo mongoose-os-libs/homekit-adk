@@ -8,5 +8,6 @@ Targeted platforms are ESP8266 and ESP32 for now.
 
 # TODO
 
- - KVStore persistence
- - BLE support on ESP32
+ - MFi chip support
+ - BLE transport support on ESP32
+ - Buffer size optimization (https://github.com/apple/HomeKitADK/issues/13).
