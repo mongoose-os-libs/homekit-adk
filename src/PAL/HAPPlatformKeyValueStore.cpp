@@ -192,7 +192,7 @@ HAPError KVStore::Enumerate(
     for (auto it = from_it; it != to_it; it++) {
         HAPPlatformKeyValueStoreDomain kd = static_cast<HAPPlatformKeyValueStoreDomain>(it->first >> 8);
         HAPPlatformKeyValueStoreKey kk = static_cast<HAPPlatformKeyValueStoreKey>(it->first);
-        bool shouldContinue = false;
+        bool shouldContinue = true;
         err = callback(context, keyValueStore, kd, kk, &shouldContinue);
         if (err != kHAPError_None || !shouldContinue) {
             break;
