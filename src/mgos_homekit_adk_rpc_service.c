@@ -106,6 +106,8 @@ out:
     free(code);
     free(salt);
     free(verifier);
+    (void) cb_arg;
+    (void) fi;
 }
 
 void mgos_hap_add_rpc_service(void) {
