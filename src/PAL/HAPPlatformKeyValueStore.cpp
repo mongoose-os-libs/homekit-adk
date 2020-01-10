@@ -18,7 +18,10 @@
 #include "HAPPlatformKeyValueStore.h"
 #include "HAPPlatformKeyValueStore+Init.h"
 
+#include <stdio.h>
+
 #include <map>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -33,7 +36,7 @@ public:
                 void* _Nullable bytes,
                 size_t maxBytes,
                 size_t* _Nullable numBytes,
-                bool* found);
+                bool* found) const;
     HAPError
             Set(HAPPlatformKeyValueStoreDomain domain,
                 HAPPlatformKeyValueStoreKey key,
@@ -44,13 +47,13 @@ public:
             HAPPlatformKeyValueStoreRef keyValueStore,
             HAPPlatformKeyValueStoreDomain domain,
             HAPPlatformKeyValueStoreEnumerateCallback callback,
-            void* _Nullable context);
+            void* _Nullable context) const;
     HAPError PurgeDomain(HAPPlatformKeyValueStoreDomain domain);
 
 private:
     static uint16_t KVSKey(HAPPlatformKeyValueStoreDomain domain, HAPPlatformKeyValueStoreKey key);
     void Load();
-    HAPError Save();
+    HAPError Save() const;
 
     const std::string fileName_;
     std::map<uint16_t, std::string> kvs_;
@@ -62,12 +65,82 @@ KVStore::KVStore(const char* fileName)
 }
 
 void KVStore::Load() {
-    LOG(LL_ERROR, ("TODO: Implement KVStore::Load"));
+    void* h = NULL;
+    size_t size = 0;
+    char* data = cs_read_file(fileName_.c_str(), &size);
+    if (data == NULL) {
+        // In case Save() was interrupted at the final stage.
+        std::string tmpFileName = fileName_ + ".tmp";
+        data = cs_read_file(tmpFileName.c_str(), &size);
+        if (data != NULL) {
+            // Finish the job.
+            rename(tmpFileName.c_str(), fileName_.c_str());
+        }
+    }
+    if (data == NULL) {
+        LOG(LL_WARN, ("No KVStore data"));
+        goto out;
+    }
+
+    kvs_.clear();
+    struct json_token key, val;
+    while ((h = json_next_key(data, size, h, "", &key, &val)) != NULL) {
+        char* v = NULL;
+        int vs = 0;
+        // NUL-terminate the key.
+        std::string ks(key.ptr, key.len);
+        int k = std::atoi(ks.c_str());
+        // Include quotes.
+        val.ptr--;
+        val.len += 2;
+        if (json_scanf(val.ptr - 1, val.len + 2, "%V", &v, &vs) == 1) {
+            kvs_[k] = std::string(v, vs);
+            free(v);
+        }
+    }
+
+    LOG(LL_INFO, ("Loaded %d keys from %s", (int) kvs_.size(), fileName_.c_str()));
+
+out:
+    free(data);
 }
 
-HAPError KVStore::Save() {
-    LOG(LL_ERROR, ("TODO: Implement KVStore::Save"));
-    return kHAPError_None;
+HAPError KVStore::Save() const {
+    HAPError err = kHAPError_Unknown;
+    std::string tmpFileName = fileName_ + ".tmp";
+    FILE* fp = fopen(tmpFileName.c_str(), "w");
+    if (fp == NULL) {
+        LOG(LL_ERROR, ("Failed to open %s for writing", tmpFileName.c_str()));
+        goto out;
+    }
+    struct json_out out;
+    out = JSON_OUT_FILE(fp);
+    int num;
+    num = 0;
+    json_printf(&out, "{");
+    for (auto it = kvs_.begin(); it != kvs_.end(); it++, num++) {
+        if (num != 0) {
+            json_printf(&out, ",");
+        }
+        if (json_printf(&out, "\n  \"%d\": %V", it->first, it->second.data(), (int) it->second.size()) < 0) {
+            goto out;
+        }
+    }
+    json_printf(&out, "\n}\n");
+    fclose(fp);
+    fp = NULL;
+    remove(fileName_.c_str());
+    if (rename(tmpFileName.c_str(), fileName_.c_str()) != 0) {
+        goto out;
+    }
+    LOG(LL_INFO, ("Saved %d keys to %s", num, fileName_.c_str()));
+
+    err = kHAPError_None;
+
+out:
+    if (fp != NULL)
+        fclose(fp);
+    return err;
 }
 
 // static
@@ -81,10 +154,11 @@ HAPError KVStore::Get(
         void* _Nullable bytes,
         size_t maxBytes,
         size_t* _Nullable numBytes,
-        bool* found) {
+        bool* found) const {
     auto it = kvs_.find(KVSKey(domain, key));
     if (it == kvs_.end()) {
         *found = false;
+        *numBytes = 0;
     } else {
         *numBytes = std::min(it->second.size(), maxBytes);
         std::memcpy(bytes, it->second.data(), *numBytes);
@@ -111,7 +185,7 @@ HAPError KVStore::Enumerate(
         HAPPlatformKeyValueStoreRef keyValueStore,
         HAPPlatformKeyValueStoreDomain domain,
         HAPPlatformKeyValueStoreEnumerateCallback callback,
-        void* _Nullable context) {
+        void* _Nullable context) const {
     HAPError err = kHAPError_None;
     const auto from_it = kvs_.lower_bound(KVSKey(domain, 0x00));
     const auto to_it = kvs_.lower_bound(KVSKey(domain, 0xff));
