@@ -228,11 +228,13 @@ HAPError HAPPlatformTCPStreamWrite(
 void HAPPlatformTCPStreamManagerCreate(
         HAPPlatformTCPStreamManagerRef tcpStreamManager,
         const HAPPlatformTCPStreamManagerOptions* options) {
+    static HAPNetworkPort anyPort = 9000; // Kinda hacky, but hey...
     memset(tcpStreamManager, 0, sizeof(*tcpStreamManager));
-    tcpStreamManager->port = options->port;
     tcpStreamManager->maxTCPStreams = options->maxConcurrentTCPStreams;
-    if (tcpStreamManager->port == kHAPNetworkPort_Any) {
-        LOG(LL_ERROR, ("=== kHAPNetworkPort_Any is not supported, use a specific port!"));
+    if (options->port != kHAPNetworkPort_Any) {
+        tcpStreamManager->port = options->port;
+    } else {
+        tcpStreamManager->port = anyPort++;
     }
 }
 

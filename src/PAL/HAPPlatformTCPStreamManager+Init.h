@@ -20,9 +20,6 @@ extern "C" {
 /**@file
  * TCP stream manager implementation for Mongoose OS.
  *
- * The following limitations apply:
- * - kHAPNetworkPort_Any is not supported, port has to be specified explicitly.
- *
  * **Example**
 
    @code{.c}
@@ -32,7 +29,8 @@ extern "C" {
    // Initialize TCP stream manager object.
    HAPPlatformTCPStreamManagerCreate(&platform.tcpStreamManager,
        &(const HAPPlatformTCPStreamManagerOptions) {
-           .port = 8080,
+           // Listen on an unused port number from the ephemeral port range.
+           .port = kHAPNetworkPort_Any,
 
            // Allocate enough concurrent TCP streams to support the IP accessory.
            .maxConcurrentTCPStreams = kHAPIPSessionStorage_DefaultNumElements
@@ -48,7 +46,7 @@ typedef struct {
     /**
      * Local port number on which to bind the TCP stream manager.
      *
-     * Note: kHAPNetworkPort_Any is not supportedon Mongoose OS, use a specific value.
+     * - A value of kHAPNetworkPort_Any will use an unused port number from the ephemeral port range.
      */
     HAPNetworkPort port;
 
