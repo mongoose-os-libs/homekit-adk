@@ -90,13 +90,12 @@ static void mgos_hap_setup_info_handler(
 
     mgos_conf_free(mgos_config_schema(), cfg);
 
-    mg_rpc_send_responsef(
-            ri,
-            "{salt: %H, verifier: %H}",
-            sizeof(setupInfo.salt),
-            setupInfo.salt,
-            sizeof(setupInfo.verifier),
-            setupInfo.verifier);
+    mgos_sys_config_set_hap_salt(salt);
+    salt = NULL;
+    mgos_sys_config_set_hap_verifier(verifier);
+    verifier = NULL;
+
+    mg_rpc_send_responsef(ri, NULL);
 
     if (reboot) {
         mgos_system_restart_after(500);
