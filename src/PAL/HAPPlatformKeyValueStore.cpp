@@ -99,7 +99,7 @@ void KVStore::Load() {
         }
     }
 
-    LOG(LL_INFO, ("Loaded %d keys from %s", (int) kvs_.size(), fileName_.c_str()));
+    LOG(LL_DEBUG, ("Loaded %d keys from %s", (int) kvs_.size(), fileName_.c_str()));
 
 out:
     free(data);
@@ -133,7 +133,7 @@ HAPError KVStore::Save() const {
     if (rename(tmpFileName.c_str(), fileName_.c_str()) != 0) {
         goto out;
     }
-    LOG(LL_INFO, ("Saved %d keys to %s", num, fileName_.c_str()));
+    LOG(LL_DEBUG, ("Saved %d keys to %s", num, fileName_.c_str()));
 
     err = kHAPError_None;
 
