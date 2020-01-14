@@ -101,3 +101,25 @@ bool mgos_hap_setup_info_from_string(HAPSetupInfo *setupInfo, const char *salt, 
 #ifdef MGOS_HAVE_RPC_COMMON
 void mgos_hap_add_rpc_service(void);
 #endif
+
+/*
+ * Some common definitions for reuse.
+ */
+
+/*
+ * Accessory information Service.
+ * Uses IDs 0x1000 - 0x1008.
+ */
+extern const HAPService mgos_hap_accessory_information_service;
+
+/*
+ * Protocol Information Service.
+ * Uses IDs 0x1010 - 0x1012.
+ */
+extern const HAPService mgos_hap_protocol_information_service;
+
+/*
+ * Pairing Service.
+ * Uses IDs 0x1020 - 0x1024.
+ */
+extern const HAPService mgos_hap_pairing_service;
