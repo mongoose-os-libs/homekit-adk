@@ -19,6 +19,8 @@ extern "C" {
 #define HAP_BLE 1
 #endif
 
+#include <stdlib.h>
+
 #include "HAP.h"
 
 #include "HAPCrypto.h"

@@ -1820,6 +1820,7 @@ static void get_characteristics(HAPIPSessionDescriptor* session) {
     HAPError err;
 
     int r;
+    HAPIPReadContextRef* readContexts = NULL;
     size_t contexts_count, content_length, mark;
     HAPIPReadRequestParameters parameters;
     HAPIPByteBuffer data_buffer;
@@ -1831,8 +1832,7 @@ static void get_characteristics(HAPIPSessionDescriptor* session) {
         err = HAPIPAccessoryProtocolGetCharacteristicReadRequests(
                 &session->httpURI.bytes[17],
                 session->httpURI.numBytes - 17,
-                server->ip.storage->readContexts,
-                server->ip.storage->numReadContexts,
+                &readContexts,
                 &contexts_count,
                 &parameters);
         if (!err) {
@@ -1849,11 +1849,11 @@ static void get_characteristics(HAPIPSessionDescriptor* session) {
                 r = handle_characteristic_read_requests(
                         session,
                         kHAPIPSessionContext_GetCharacteristics,
-                        server->ip.storage->readContexts,
+                        readContexts,
                         contexts_count,
                         &data_buffer);
                 content_length = HAPIPAccessoryProtocolGetNumCharacteristicReadResponseBytes(
-                        HAPNonnull(session->server), server->ip.storage->readContexts, contexts_count, &parameters);
+                        HAPNonnull(session->server), readContexts, contexts_count, &parameters);
                 HAPAssert(session->outboundBuffer.data);
                 HAPAssert(session->outboundBuffer.position <= session->outboundBuffer.limit);
                 HAPAssert(session->outboundBuffer.limit <= session->outboundBuffer.capacity);
@@ -1877,7 +1877,7 @@ static void get_characteristics(HAPIPSessionDescriptor* session) {
                         mark = session->outboundBuffer.position;
                         err = HAPIPAccessoryProtocolGetCharacteristicReadResponseBytes(
                                 HAPNonnull(session->server),
-                                server->ip.storage->readContexts,
+                                readContexts,
                                 contexts_count,
                                 &parameters,
                                 &session->outboundBuffer);
@@ -1902,6 +1902,7 @@ static void get_characteristics(HAPIPSessionDescriptor* session) {
     } else {
         write_msg(&session->outboundBuffer, kHAPIPAccessoryServerResponse_BadRequest);
     }
+    free(readContexts);
 }
 
 static void handle_accessory_serialization(HAPIPSessionDescriptor* session) {
@@ -3271,6 +3272,7 @@ static void write_event_notifications(HAPIPSessionDescriptor* session) {
         HAPTime dt_ms = clock_now_ms - session->eventNotificationStamp;
 
         size_t numReadContexts = 0;
+        HAPIPReadContextRef* readContexts = NULL;
 
         for (size_t i = 0; i < session->numEventNotifications; i++) {
             HAPIPEventNotification* eventNotification = (HAPIPEventNotification*) &session->eventNotifications[i];
@@ -3311,12 +3313,19 @@ static void write_event_notifications(HAPIPSessionDescriptor* session) {
                     }
                 }
                 if (notifyNow) {
-                    HAPAssert(numReadContexts < server->ip.storage->numReadContexts);
+                    HAPIPReadContextRef *readContexts2 = realloc(readContexts, (numReadContexts + 1) * sizeof *readContexts2);
+                    if (readContexts2 == NULL) {
+                        free(readContexts);
+                        readContexts = NULL;
+                        numReadContexts = 0;
+                        break;
+                    }
                     HAPIPReadContext* readContext =
-                            (HAPIPReadContext*) &server->ip.storage->readContexts[numReadContexts];
+                            (HAPIPReadContext*) &readContexts2[numReadContexts];
                     HAPRawBufferZero(readContext, sizeof *readContext);
                     readContext->aid = eventNotification->aid;
                     readContext->iid = eventNotification->iid;
+                    readContexts = readContexts2;
                     numReadContexts++;
                     eventNotification->flag = false;
                     HAPAssert(session->numEventNotificationFlags > 0);
@@ -3337,13 +3346,13 @@ static void write_event_notifications(HAPIPSessionDescriptor* session) {
             int r = handle_characteristic_read_requests(
                     session,
                     kHAPIPSessionContext_EventNotification,
-                    server->ip.storage->readContexts,
+                    readContexts,
                     numReadContexts,
                     &data_buffer);
             (void) r;
 
             size_t content_length = HAPIPAccessoryProtocolGetNumEventNotificationBytes(
-                    HAPNonnull(session->server), server->ip.storage->readContexts, numReadContexts);
+                    HAPNonnull(session->server), readContexts, numReadContexts);
 
             HAPAssert(session->outboundBuffer.data);
             HAPAssert(session->outboundBuffer.position <= session->outboundBuffer.limit);
@@ -3364,7 +3373,7 @@ static void write_event_notifications(HAPIPSessionDescriptor* session) {
                 mark = session->outboundBuffer.position;
                 err = HAPIPAccessoryProtocolGetEventNotificationBytes(
                         HAPNonnull(session->server),
-                        server->ip.storage->readContexts,
+                        readContexts,
                         numReadContexts,
                         &session->outboundBuffer);
                 HAPAssert(!err && (session->outboundBuffer.position - mark == content_length));
@@ -3406,6 +3415,7 @@ static void write_event_notifications(HAPIPSessionDescriptor* session) {
                 HAPLog(&logObject, "Skipping event notifications (outbound buffer too small).");
                 session->outboundBuffer.position = mark;
             }
+            free(readContexts);
         }
     } else {
         for (size_t i = 0; i < session->numEventNotifications; i++) {
@@ -3786,14 +3796,6 @@ static void engine_init(HAPAccessoryServerRef* server_) {
     }
     HAPLogDebug(
             &logObject,
-            "Storage configuration: numReadContexts = %lu",
-            (unsigned long) server->ip.storage->numReadContexts);
-    HAPLogDebug(
-            &logObject,
-            "Storage configuration: readContexts = %lu",
-            (unsigned long) (server->ip.storage->numReadContexts * sizeof(HAPIPReadContextRef)));
-    HAPLogDebug(
-            &logObject,
             "Storage configuration: numWriteContexts = %lu",
             (unsigned long) server->ip.storage->numWriteContexts);
     HAPLogDebug(
@@ -3819,9 +3821,6 @@ static HAPError engine_deinit(HAPAccessoryServerRef* server_) {
     HAPAssert(server->ip.state == kHAPIPAccessoryServerState_Idle);
 
     HAPIPAccessoryServerStorage* storage = HAPNonnull(server->ip.storage);
-
-    HAPAssert(storage->readContexts);
-    HAPRawBufferZero(storage->readContexts, storage->numReadContexts * sizeof *storage->readContexts);
 
     HAPAssert(storage->writeContexts);
     HAPRawBufferZero(storage->writeContexts, storage->numWriteContexts * sizeof *storage->writeContexts);
@@ -4068,7 +4067,6 @@ static void Create(HAPAccessoryServerRef* server_, const HAPAccessoryServerOptio
     // Initialize IP storage.
     HAPPrecondition(options->ip.accessoryServerStorage);
     HAPIPAccessoryServerStorage* storage = options->ip.accessoryServerStorage;
-    HAPPrecondition(storage->readContexts);
     HAPPrecondition(storage->writeContexts);
     HAPPrecondition(storage->scratchBuffer.bytes);
     HAPPrecondition(storage->sessions);
@@ -4079,7 +4077,6 @@ static void Create(HAPAccessoryServerRef* server_, const HAPAccessoryServerOptio
         HAPPrecondition(session->outboundBuffer.bytes);
         HAPPrecondition(session->eventNotifications);
     }
-    HAPRawBufferZero(storage->readContexts, storage->numReadContexts * sizeof *storage->readContexts);
     HAPRawBufferZero(storage->writeContexts, storage->numWriteContexts * sizeof *storage->writeContexts);
     HAPRawBufferZero(storage->scratchBuffer.bytes, storage->scratchBuffer.numBytes);
     for (size_t i = 0; i < storage->numSessions; i++) {
@@ -4102,7 +4099,6 @@ static void PrepareStart(HAPAccessoryServerRef* server_) {
     HAPAccessoryServer* server = (HAPAccessoryServer*) server_;
 
     HAPIPAccessoryServerStorage* storage = HAPNonnull(server->ip.storage);
-    HAPRawBufferZero(storage->readContexts, storage->numReadContexts * sizeof *storage->readContexts);
     HAPRawBufferZero(storage->writeContexts, storage->numWriteContexts * sizeof *storage->writeContexts);
     HAPRawBufferZero(storage->scratchBuffer.bytes, storage->scratchBuffer.numBytes);
     for (size_t i = 0; i < storage->numSessions; i++) {

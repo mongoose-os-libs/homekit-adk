@@ -152,8 +152,7 @@ HAP_RESULT_USE_CHECK
 HAPError HAPIPAccessoryProtocolGetCharacteristicReadRequests(
         char* bytes,
         size_t numBytes,
-        HAPIPReadContextRef* readContexts,
-        size_t maxReadContexts,
+        HAPIPReadContextRef* _Nonnull* _Nullable readContexts,
         size_t* numReadContexts,
         HAPIPReadRequestParameters* parameters) {
     HAPError err;
@@ -165,6 +164,7 @@ HAPError HAPIPAccessoryProtocolGetCharacteristicReadRequests(
     HAPAssert(readContexts != NULL);
     HAPAssert(numReadContexts != NULL);
     HAPAssert(parameters != NULL);
+    *readContexts = NULL;
     *numReadContexts = 0;
     parameters->meta = false;
     parameters->perms = false;
@@ -192,14 +192,18 @@ HAPError HAPIPAccessoryProtocolGetCharacteristicReadRequests(
                         HAPAssert(k <= i);
                         HAPAssert(i <= numBytes);
                         if ((k < i) && ((i == numBytes) || ((bytes[i] < '0') || (bytes[i] > '9')))) {
-                            if (*numReadContexts < maxReadContexts) {
-                                HAPIPReadContext* readContext = (HAPIPReadContext*) &readContexts[*numReadContexts];
+                            HAPIPReadContextRef* readContexts2 = realloc(*readContexts, (*numReadContexts + 1) * sizeof *readContexts2);
+                            if (readContexts2 != NULL) {
+                                HAPIPReadContext* readContext = (HAPIPReadContext*) &readContexts2[*numReadContexts];
                                 HAPRawBufferZero(readContext, sizeof *readContext);
                                 readContext->aid = aid;
                                 readContext->iid = iid;
+                                *readContexts = readContexts2;
                                 (*numReadContexts)++;
                             } else {
-                                HAPAssert(*numReadContexts == maxReadContexts);
+                                free(*readContexts);
+                                *numReadContexts = 0;
+                                *readContexts = NULL;
                                 err = kHAPError_OutOfResources;
                             }
                             HAPAssert(i <= numBytes);

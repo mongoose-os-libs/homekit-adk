@@ -49,8 +49,7 @@ HAP_RESULT_USE_CHECK
 HAPError HAPIPAccessoryProtocolGetCharacteristicReadRequests(
         char* bytes,
         size_t numBytes,
-        HAPIPReadContextRef* readContexts,
-        size_t maxReadContexts,
+        HAPIPReadContextRef* _Nonnull* _Nullable readContexts,
         size_t* numReadContexts,
         HAPIPReadRequestParameters* parameters);
 

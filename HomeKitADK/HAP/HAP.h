@@ -3695,19 +3695,6 @@ typedef struct {
     size_t numSessions;
 
     /**
-     * IP read contexts.
-     *
-     * - At least one of these structures must be allocated per HomeKit characteristic and service and must remain
-     *   valid while the accessory server is initialized.
-     */
-    HAPIPReadContextRef* readContexts;
-
-    /**
-     * Number of read contexts.
-     */
-    size_t numReadContexts;
-
-    /**
      * IP write contexts.
      *
      * - At least one of these structures must be allocated per HomeKit characteristic and service and must remain
