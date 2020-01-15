@@ -277,6 +277,12 @@ static void InitializeBLE() {
 }
 #endif
 
+#ifdef SIGINT
+void HandleINT(int sig HAP_UNUSED) {
+    HAPPlatformRunLoopStop();
+}
+#endif
+
 int main(int argc HAP_UNUSED, char* _Nullable argv[_Nullable] HAP_UNUSED) {
     HAPAssert(HAPGetCompatibilityVersion() == HAP_COMPATIBILITY_VERSION);
 
@@ -308,6 +314,10 @@ int main(int argc HAP_UNUSED, char* _Nullable argv[_Nullable] HAP_UNUSED) {
 
     // Start accessory server for App.
     AppAccessoryServerStart();
+
+#ifdef SIGINT
+    signal(SIGINT, HandleINT);
+#endif
 
     // Run main loop until explicitly stopped.
     HAPPlatformRunLoopRun();
