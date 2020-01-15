@@ -123,8 +123,7 @@ HAP_RESULT_USE_CHECK
 HAPError HAPIPAccessoryProtocolGetCharacteristicWriteRequests(
         char* bytes,
         size_t numBytes,
-        HAPIPWriteContextRef* writeContexts,
-        size_t maxWriteContexts,
+        HAPIPWriteContextRef* _Nonnull* _Nullable writeContexts,
         size_t* numWriteContexts,
         bool* hasPID,
         uint64_t* pid);

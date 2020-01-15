@@ -1385,6 +1385,7 @@ static void put_characteristics(HAPIPSessionDescriptor* session) {
     bool pid_valid;
     uint64_t pid;
     HAPIPByteBuffer data_buffer;
+    HAPIPWriteContextRef* writeContexts = NULL;
 
     HAPAssert(session->inboundBuffer.data);
     HAPAssert(session->inboundBuffer.position <= session->inboundBuffer.limit);
@@ -1395,8 +1396,7 @@ static void put_characteristics(HAPIPSessionDescriptor* session) {
         err = HAPIPAccessoryProtocolGetCharacteristicWriteRequests(
                 &session->inboundBuffer.data[session->httpReaderPosition],
                 session->httpContentLength.value,
-                server->ip.storage->writeContexts,
-                server->ip.storage->numWriteContexts,
+                &writeContexts,
                 &contexts_count,
                 &pid_valid,
                 &pid);
@@ -1411,11 +1411,11 @@ static void put_characteristics(HAPIPSessionDescriptor* session) {
                 // Section 6.7.2.4 Timed Write Procedures
                 HAPLog(&logObject, "Rejecting expired Execute Write Request.");
                 for (i = 0; i < contexts_count; i++) {
-                    ((HAPIPWriteContext*) &server->ip.storage->writeContexts[i])->status =
+                    ((HAPIPWriteContext*) &writeContexts[i])->status =
                             kHAPIPAccessoryServerStatusCode_InvalidValueInWrite;
                 }
                 HAPAssert(i == contexts_count);
-                write_characteristic_write_response(session, server->ip.storage->writeContexts, contexts_count);
+                write_characteristic_write_response(session, writeContexts, contexts_count);
             } else if (contexts_count == 0) {
                 write_msg(&session->outboundBuffer, kHAPIPAccessoryServerResponse_NoContent);
             } else {
@@ -1427,11 +1427,11 @@ static void put_characteristics(HAPIPSessionDescriptor* session) {
                 HAPAssert(data_buffer.position <= data_buffer.limit);
                 HAPAssert(data_buffer.limit <= data_buffer.capacity);
                 r = handle_characteristic_write_requests(
-                        session, server->ip.storage->writeContexts, contexts_count, &data_buffer, pid_valid);
+                        session, writeContexts, contexts_count, &data_buffer, pid_valid);
                 if (r == 0) {
                     write_msg(&session->outboundBuffer, kHAPIPAccessoryServerResponse_NoContent);
                 } else {
-                    write_characteristic_write_response(session, server->ip.storage->writeContexts, contexts_count);
+                    write_characteristic_write_response(session, writeContexts, contexts_count);
                 }
             }
             // Reset timed write transaction.
@@ -1447,6 +1447,7 @@ static void put_characteristics(HAPIPSessionDescriptor* session) {
     } else {
         write_msg(&session->outboundBuffer, kHAPIPAccessoryServerResponse_BadRequest);
     }
+    free(writeContexts);
 }
 
 /**
@@ -3796,14 +3797,6 @@ static void engine_init(HAPAccessoryServerRef* server_) {
     }
     HAPLogDebug(
             &logObject,
-            "Storage configuration: numWriteContexts = %lu",
-            (unsigned long) server->ip.storage->numWriteContexts);
-    HAPLogDebug(
-            &logObject,
-            "Storage configuration: writeContexts = %lu",
-            (unsigned long) (server->ip.storage->numWriteContexts * sizeof(HAPIPWriteContextRef)));
-    HAPLogDebug(
-            &logObject,
             "Storage configuration: scratchBuffer.numBytes = %lu",
             (unsigned long) server->ip.storage->scratchBuffer.numBytes);
 
@@ -3821,9 +3814,6 @@ static HAPError engine_deinit(HAPAccessoryServerRef* server_) {
     HAPAssert(server->ip.state == kHAPIPAccessoryServerState_Idle);
 
     HAPIPAccessoryServerStorage* storage = HAPNonnull(server->ip.storage);
-
-    HAPAssert(storage->writeContexts);
-    HAPRawBufferZero(storage->writeContexts, storage->numWriteContexts * sizeof *storage->writeContexts);
 
     HAPAssert(storage->scratchBuffer.bytes);
     HAPRawBufferZero(storage->scratchBuffer.bytes, storage->scratchBuffer.numBytes);
@@ -4067,7 +4057,6 @@ static void Create(HAPAccessoryServerRef* server_, const HAPAccessoryServerOptio
     // Initialize IP storage.
     HAPPrecondition(options->ip.accessoryServerStorage);
     HAPIPAccessoryServerStorage* storage = options->ip.accessoryServerStorage;
-    HAPPrecondition(storage->writeContexts);
     HAPPrecondition(storage->scratchBuffer.bytes);
     HAPPrecondition(storage->sessions);
     HAPPrecondition(storage->numSessions);
@@ -4077,7 +4066,6 @@ static void Create(HAPAccessoryServerRef* server_, const HAPAccessoryServerOptio
         HAPPrecondition(session->outboundBuffer.bytes);
         HAPPrecondition(session->eventNotifications);
     }
-    HAPRawBufferZero(storage->writeContexts, storage->numWriteContexts * sizeof *storage->writeContexts);
     HAPRawBufferZero(storage->scratchBuffer.bytes, storage->scratchBuffer.numBytes);
     for (size_t i = 0; i < storage->numSessions; i++) {
         HAPIPSession* ipSession = &storage->sessions[i];
@@ -4099,7 +4087,6 @@ static void PrepareStart(HAPAccessoryServerRef* server_) {
     HAPAccessoryServer* server = (HAPAccessoryServer*) server_;
 
     HAPIPAccessoryServerStorage* storage = HAPNonnull(server->ip.storage);
-    HAPRawBufferZero(storage->writeContexts, storage->numWriteContexts * sizeof *storage->writeContexts);
     HAPRawBufferZero(storage->scratchBuffer.bytes, storage->scratchBuffer.numBytes);
     for (size_t i = 0; i < storage->numSessions; i++) {
         HAPIPSession* ipSession = &storage->sessions[i];

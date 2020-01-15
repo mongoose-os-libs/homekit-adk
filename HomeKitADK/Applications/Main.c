@@ -231,13 +231,10 @@ static void InitializeIP() {
         ipSessions[i].eventNotifications = ipEventNotifications[i];
         ipSessions[i].numEventNotifications = HAPArrayCount(ipEventNotifications[i]);
     }
-    static HAPIPWriteContextRef ipWriteContexts[kAttributeCount];
     static uint8_t ipScratchBuffer[kHAPIPSession_DefaultScratchBufferSize];
     static HAPIPAccessoryServerStorage ipAccessoryServerStorage = {
         .sessions = ipSessions,
         .numSessions = HAPArrayCount(ipSessions),
-        .writeContexts = ipWriteContexts,
-        .numWriteContexts = HAPArrayCount(ipWriteContexts),
         .scratchBuffer = { .bytes = ipScratchBuffer, .numBytes = sizeof ipScratchBuffer }
     };
 

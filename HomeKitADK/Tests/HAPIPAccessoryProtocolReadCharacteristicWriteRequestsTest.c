@@ -9,7 +9,7 @@
 int main() {
     HAPError err;
 
-    HAPIPWriteContextRef writeContexts[128];
+    HAPIPWriteContextRef *writeContexts = NULL;
 
     {
         // Test vector.
@@ -43,8 +43,7 @@ int main() {
         err = HAPIPAccessoryProtocolGetCharacteristicWriteRequests(
                 request,
                 sizeof request - 1,
-                writeContexts,
-                HAPArrayCount(writeContexts),
+                &writeContexts,
                 &contexts_count,
                 &pid_valid,
                 &pid);
@@ -114,8 +113,7 @@ int main() {
         err = HAPIPAccessoryProtocolGetCharacteristicWriteRequests(
                 request,
                 sizeof request - 1,
-                writeContexts,
-                HAPArrayCount(writeContexts),
+                &writeContexts,
                 &contexts_count,
                 &pid_valid,
                 &pid);
@@ -138,8 +136,7 @@ int main() {
         err = HAPIPAccessoryProtocolGetCharacteristicWriteRequests(
                 request,
                 sizeof request - 1,
-                writeContexts,
-                HAPArrayCount(writeContexts),
+                &writeContexts,
                 &contexts_count,
                 &pid_valid,
                 &pid);
@@ -170,6 +167,8 @@ int main() {
         HAPAssert(writeContext->type == kHAPIPWriteValueType_UInt);
         HAPAssert(writeContext->value.unsignedIntValue == 18446744073709551615ULL);
     }
+
+    free(writeContexts);
 
     return 0;
 }

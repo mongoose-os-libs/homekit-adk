@@ -9,7 +9,7 @@
 int main() {
     HAPError err;
 
-    HAPIPWriteContextRef writeContexts[128];
+    HAPIPWriteContextRef *writeContexts = NULL;
 
     {
         char request[] =
@@ -26,8 +26,7 @@ int main() {
         err = HAPIPAccessoryProtocolGetCharacteristicWriteRequests(
                 request,
                 sizeof request - 1,
-                writeContexts,
-                HAPArrayCount(writeContexts),
+                &writeContexts,
                 &contexts_count,
                 &pid_valid,
                 &pid);
@@ -60,6 +59,8 @@ int main() {
         HAPAssert(writeContext->value.stringValue.numBytes == 12);
         HAPAssert(HAPRawBufferAreEqual(HAPNonnull(writeContext->value.stringValue.bytes), "ABCabc123+//", 12));
     }
+
+    free(writeContexts);
 
     return 0;
 }

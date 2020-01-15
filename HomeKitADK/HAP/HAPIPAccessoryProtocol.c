@@ -1475,16 +1475,15 @@ static size_t read_characteristic_write_request(
         struct util_json_reader* r,
         char* buffer,
         size_t length,
-        HAPIPWriteContextRef* contexts,
-        size_t max_contexts,
-        size_t* numReadContexts,
+        HAPIPWriteContextRef** contexts,
+        size_t* numWriteContexts,
         HAPError* err) {
     size_t k;
     HAPIPWriteRequestParameters parameters;
     HAPAssert(r != NULL);
     HAPAssert(buffer != NULL);
     HAPAssert(contexts != NULL);
-    HAPAssert(numReadContexts != NULL);
+    HAPAssert(numWriteContexts != NULL);
     HAPAssert(err != NULL);
     *err = kHAPError_None;
     HAPRawBufferZero(&parameters, sizeof parameters);
@@ -1508,8 +1507,9 @@ static size_t read_characteristic_write_request(
         goto exit;
     }
     if ((parameters.aid.isDefined) && (parameters.iid.isDefined)) {
-        if (*numReadContexts < max_contexts) {
-            HAPIPWriteContext* writeContext = (HAPIPWriteContext*) &contexts[*numReadContexts];
+        HAPIPWriteContextRef* contexts2 = realloc(*contexts, (*numWriteContexts + 1) * sizeof *contexts2);
+        if (contexts2 != NULL) {
+            HAPIPWriteContext* writeContext = (HAPIPWriteContext*) &contexts2[*numWriteContexts];
             HAPRawBufferZero(writeContext, sizeof *writeContext);
             writeContext->aid = parameters.aid.value;
             writeContext->iid = parameters.iid.value;
@@ -1536,9 +1536,12 @@ static size_t read_characteristic_write_request(
             writeContext->authorizationData.numBytes = parameters.authorizationData.numBytes;
             writeContext->remote = parameters.remote;
             writeContext->response = parameters.response;
-            (*numReadContexts)++;
+            *contexts = contexts2;
+            (*numWriteContexts)++;
         } else {
-            HAPAssert(*numReadContexts == max_contexts);
+            free(*contexts);
+            *contexts = NULL;
+            *numWriteContexts = 0;
             *err = kHAPError_OutOfResources;
         }
     } else {
@@ -1554,8 +1557,7 @@ HAP_RESULT_USE_CHECK
 HAPError HAPIPAccessoryProtocolGetCharacteristicWriteRequests(
         char* bytes,
         size_t numBytes,
-        HAPIPWriteContextRef* writeContexts,
-        size_t maxWriteContexts,
+        HAPIPWriteContextRef* _Nonnull* _Nullable writeContexts,
         size_t* numWriteContexts,
         bool* hasPID,
         uint64_t* pid) {
@@ -1610,7 +1612,7 @@ HAPError HAPIPAccessoryProtocolGetCharacteristicWriteRequests(
             HAPAssert(k <= numBytes);
             do {
                 k += read_characteristic_write_request(
-                        &json_reader, &bytes[k], numBytes - k, writeContexts, maxWriteContexts, numWriteContexts, &err);
+                        &json_reader, &bytes[k], numBytes - k, writeContexts, numWriteContexts, &err);
                 if (err) {
                     return err;
                 }

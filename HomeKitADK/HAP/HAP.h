@@ -3695,19 +3695,6 @@ typedef struct {
     size_t numSessions;
 
     /**
-     * IP write contexts.
-     *
-     * - At least one of these structures must be allocated per HomeKit characteristic and service and must remain
-     *   valid while the accessory server is initialized.
-     */
-    HAPIPWriteContextRef* writeContexts;
-
-    /**
-     * Number of write contexts.
-     */
-    size_t numWriteContexts;
-
-    /**
      * Scratch buffer.
      */
     struct {
