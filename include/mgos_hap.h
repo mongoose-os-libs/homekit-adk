@@ -57,38 +57,38 @@ enum mgos_hap_event {
 };
 
 struct mgos_hap_load_setup_info_arg {
-    HAPPlatformAccessorySetupRef accessorySetup;
-    HAPSetupInfo* setupInfo;
+    HAPPlatformAccessorySetupRef _Nonnull accessorySetup;
+    HAPSetupInfo* _Nonnull setupInfo;
 };
 
 struct mgos_hap_load_setup_code_arg {
-    HAPPlatformAccessorySetupRef accessorySetup;
-    HAPSetupCode* setupCode;
+    HAPPlatformAccessorySetupRef _Nonnull accessorySetup;
+    HAPSetupCode* _Nonnull setupCode;
 };
 
 struct mgos_hap_load_setup_id_arg {
-    HAPPlatformAccessorySetupRef accessorySetup;
-    bool* valid;
-    HAPSetupID* setupID;
+    HAPPlatformAccessorySetupRef _Nonnull accessorySetup;
+    bool* _Nonnull valid;
+    HAPSetupID* _Nonnull setupID;
 };
 
 struct mgos_hap_display_update_setup_payload_arg {
-    HAPPlatformAccessorySetupDisplayRef setupDisplay;
+    HAPPlatformAccessorySetupDisplayRef _Nonnull setupDisplay;
     const HAPSetupPayload* _Nullable setupPayload;
     const HAPSetupCode* _Nullable setupCode;
 };
 
 struct mgos_hap_display_start_pairing_arg {
-    HAPPlatformAccessorySetupDisplayRef setupDisplay;
+    HAPPlatformAccessorySetupDisplayRef _Nonnull setupDisplay;
 };
 
 struct mgos_hap_display_stop_pairing_arg {
-    HAPPlatformAccessorySetupDisplayRef setupDisplay;
+    HAPPlatformAccessorySetupDisplayRef _Nonnull setupDisplay;
 };
 
 struct mgos_hap_nfc_update_setup_payload_arg {
-    HAPPlatformAccessorySetupNFCRef setupNFC;
-    const HAPSetupPayload* setupPayload;
+    HAPPlatformAccessorySetupNFCRef _Nonnull setupNFC;
+    const HAPSetupPayload* _Nonnull setupPayload;
     bool isPairable;
 };
 
@@ -96,7 +96,10 @@ struct mgos_hap_nfc_update_setup_payload_arg {
  * Load salt and verifier from strings.
  * Both can be either hex or base4 encoded.
  */
-bool mgos_hap_setup_info_from_string(HAPSetupInfo *setupInfo, const char *salt, const char *verifier);
+bool mgos_hap_setup_info_from_string(
+        HAPSetupInfo* _Nonnull setupInfo,
+        const char* _Nonnull salt,
+        const char* _Nonnull verifier);
 
 #ifdef MGOS_HAVE_RPC_COMMON
 void mgos_hap_add_rpc_service(void);
