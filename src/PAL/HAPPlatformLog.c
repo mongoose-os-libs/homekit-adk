@@ -46,7 +46,8 @@ void HAPPlatformLogCapture(
         category = "HAP";
     }
     fprintf(stderr, "%s %s\n", category, message);
-    if (numBufferBytes > 0) {
+    // Only log dumps at level 4 and above.
+    if (numBufferBytes > 0 && cs_log_level >= LL_VERBOSE_DEBUG) {
         mg_hexdumpf(stderr, bufferBytes, numBufferBytes);
     }
 }
