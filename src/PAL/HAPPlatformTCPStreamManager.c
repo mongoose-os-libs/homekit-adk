@@ -71,6 +71,10 @@ void HAPPlatformTCPStreamManagerCloseListener(HAPPlatformTCPStreamManagerRef tcp
 static void HAPMGConnHandler(struct mg_connection* nc, int ev, void* ev_data HAP_UNUSED, void* userdata) {
     HAPPlatformTCPStream* ts = (HAPPlatformTCPStream*) userdata;
     HAPPlatformTCPStreamEvent hapEvent = { 0 };
+    if (ts == NULL) {
+        nc->flags |= MG_F_CLOSE_IMMEDIATELY;
+        return;
+    }
     switch (ev) {
         case MG_EV_POLL:
             // fallthrough
@@ -95,8 +99,7 @@ static void HAPMGConnHandler(struct mg_connection* nc, int ev, void* ev_data HAP
                 // Deliver EOF via write.
                 hapEvent.hasSpaceAvailable = true;
             } else {
-                // Shouldn't happen.
-                LOG(LL_ERROR, ("Orphan stream: %p", ts));
+                // Release the stream context.
                 free(ts);
             }
             break;
@@ -122,8 +125,9 @@ HAPError HAPPlatformTCPStreamManagerAcceptTCPStream(
     struct mg_mgr* mgr = tcpStreamManager->listener->mgr;
     struct mg_connection* nc = NULL;
     for (nc = mg_next(mgr, NULL); nc != NULL; nc = mg_next(mgr, nc)) {
-        if (nc->listener != tcpStreamManager->listener)
+        if (nc->listener != tcpStreamManager->listener) {
             continue;
+        }
         if (!(nc->flags & HAP_F_CONN_ACCEPTED)) {
             HAPPlatformTCPStream* ts = (HAPPlatformTCPStream*) calloc(1, sizeof(*ts));
             if (tcpStream == NULL) {
@@ -150,13 +154,15 @@ void HAPPlatformTCPStreamClose(
         HAPPlatformTCPStreamManagerRef tcpStreamManager HAP_UNUSED,
         HAPPlatformTCPStreamRef tcpStream) {
     HAPPlatformTCPStream* ts = (HAPPlatformTCPStream*) tcpStream;
-    if (ts == NULL || ts->nc == NULL) {
+    if (ts == NULL) {
         return;
     }
-    ts->nc->flags |= MG_F_SEND_AND_CLOSE;
-    // Do not deliver further events.
-    HAPPlatformTCPStreamEvent zero = { 0 };
-    ts->interests = zero;
+    if (ts->nc != NULL) {
+        ts->nc->flags |= MG_F_SEND_AND_CLOSE;
+        ts->nc->user_data = NULL;
+        ts->nc = NULL;
+    }
+    free(ts);
 }
 
 void HAPPlatformTCPStreamUpdateInterests(
