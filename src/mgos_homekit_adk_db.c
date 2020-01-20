@@ -193,15 +193,15 @@ const HAPService mgos_hap_accessory_information_service = {
     .name = NULL,
     .properties = { .primaryService = false, .hidden = false, .ble = { .supportsConfiguration = false } },
     .linkedServices = NULL,
-    .characteristics = (const HAPCharacteristic* const[]) { &accessoryInformationIdentifyCharacteristic,
-                                                            &accessoryInformationManufacturerCharacteristic,
-                                                            &accessoryInformationModelCharacteristic,
-                                                            &accessoryInformationNameCharacteristic,
-                                                            &accessoryInformationSerialNumberCharacteristic,
-                                                            &accessoryInformationFirmwareRevisionCharacteristic,
-                                                            &accessoryInformationHardwareRevisionCharacteristic,
-                                                            &accessoryInformationADKVersionCharacteristic,
-                                                            NULL }
+    .characteristics = (const HAPCharacteristic* const[]){ &accessoryInformationIdentifyCharacteristic,
+                                                           &accessoryInformationManufacturerCharacteristic,
+                                                           &accessoryInformationModelCharacteristic,
+                                                           &accessoryInformationNameCharacteristic,
+                                                           &accessoryInformationSerialNumberCharacteristic,
+                                                           &accessoryInformationFirmwareRevisionCharacteristic,
+                                                           &accessoryInformationHardwareRevisionCharacteristic,
+                                                           &accessoryInformationADKVersionCharacteristic,
+                                                           NULL }
 };
 
 /* Protocol Information service. */
@@ -256,7 +256,7 @@ const HAPService mgos_hap_protocol_information_service = {
     .properties = { .primaryService = false, .hidden = false, .ble = { .supportsConfiguration = true } },
     .linkedServices = NULL,
     .characteristics =
-            (const HAPCharacteristic* const[]) {
+            (const HAPCharacteristic* const[]){
                     &hapProtocolInformationServiceSignatureCharacteristic,
                     &hapProtocolInformationVersionCharacteristic,
                     NULL,
@@ -360,7 +360,7 @@ const HAPService mgos_hap_pairing_service = {
     .properties = { .primaryService = false, .hidden = false, .ble = { .supportsConfiguration = false } },
     .linkedServices = NULL,
     .characteristics =
-            (const HAPCharacteristic* const[]) {
+            (const HAPCharacteristic* const[]){
                     &pairingPairSetupCharacteristic,
                     &pairingPairVerifyCharacteristic,
                     &pairingPairingFeaturesCharacteristic,
