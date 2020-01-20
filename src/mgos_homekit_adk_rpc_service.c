@@ -29,6 +29,7 @@ static void mgos_hap_setup_info_handler(
         void* cb_arg,
         struct mg_rpc_frame_info* fi,
         struct mg_str args) {
+    struct mgos_config* cfg = NULL;
     char* code = NULL;
     char *salt = NULL, *verifier = NULL;
     int config_level = 2;
@@ -68,7 +69,7 @@ static void mgos_hap_setup_info_handler(
         goto out;
     }
 
-    struct mgos_config* cfg = (struct mgos_config*) calloc(1, sizeof(*cfg));
+    cfg = (struct mgos_config*) calloc(1, sizeof(*cfg));
     if (!mgos_sys_config_load_level(cfg, (enum mgos_config_level) config_level)) {
         mg_rpc_send_errorf(ri, 500, "failed to load config");
         goto out;
@@ -91,9 +92,7 @@ static void mgos_hap_setup_info_handler(
     mgos_conf_free(mgos_config_schema(), cfg);
 
     mgos_sys_config_set_hap_salt(salt);
-    salt = NULL;
     mgos_sys_config_set_hap_verifier(verifier);
-    verifier = NULL;
 
     mg_rpc_send_responsef(ri, NULL);
 
@@ -102,6 +101,7 @@ static void mgos_hap_setup_info_handler(
     }
 
 out:
+    free(cfg);
     free(code);
     free(salt);
     free(verifier);
