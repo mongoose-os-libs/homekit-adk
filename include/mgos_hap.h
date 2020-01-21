@@ -111,7 +111,7 @@ void mgos_hap_add_rpc_service(void);
 
 /*
  * Accessory information Service.
- * Uses IDs 0x1000 - 0x1008.
+ * Uses IDs 0x1 - 0x9.
  */
 extern const HAPService mgos_hap_accessory_information_service;
 

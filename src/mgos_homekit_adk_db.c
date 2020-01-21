@@ -21,7 +21,7 @@
 
 const HAPBoolCharacteristic accessoryInformationIdentifyCharacteristic = {
     .format = kHAPCharacteristicFormat_Bool,
-    .iid = 0x1001,
+    .iid = 0x2,
     .characteristicType = &kHAPCharacteristicType_Identify,
     .debugDescription = kHAPCharacteristicDebugDescription_Identify,
     .manufacturerDescription = NULL,
@@ -41,7 +41,7 @@ const HAPBoolCharacteristic accessoryInformationIdentifyCharacteristic = {
 
 const HAPStringCharacteristic accessoryInformationManufacturerCharacteristic = {
     .format = kHAPCharacteristicFormat_String,
-    .iid = 0x1002,
+    .iid = 0x3,
     .characteristicType = &kHAPCharacteristicType_Manufacturer,
     .debugDescription = kHAPCharacteristicDebugDescription_Manufacturer,
     .manufacturerDescription = NULL,
@@ -62,7 +62,7 @@ const HAPStringCharacteristic accessoryInformationManufacturerCharacteristic = {
 
 const HAPStringCharacteristic accessoryInformationModelCharacteristic = {
     .format = kHAPCharacteristicFormat_String,
-    .iid = 0x1003,
+    .iid = 0x4,
     .characteristicType = &kHAPCharacteristicType_Model,
     .debugDescription = kHAPCharacteristicDebugDescription_Model,
     .manufacturerDescription = NULL,
@@ -83,7 +83,7 @@ const HAPStringCharacteristic accessoryInformationModelCharacteristic = {
 
 const HAPStringCharacteristic accessoryInformationNameCharacteristic = {
     .format = kHAPCharacteristicFormat_String,
-    .iid = 0x1004,
+    .iid = 0x5,
     .characteristicType = &kHAPCharacteristicType_Name,
     .debugDescription = kHAPCharacteristicDebugDescription_Name,
     .manufacturerDescription = NULL,
@@ -104,7 +104,7 @@ const HAPStringCharacteristic accessoryInformationNameCharacteristic = {
 
 const HAPStringCharacteristic accessoryInformationSerialNumberCharacteristic = {
     .format = kHAPCharacteristicFormat_String,
-    .iid = 0x1005,
+    .iid = 0x6,
     .characteristicType = &kHAPCharacteristicType_SerialNumber,
     .debugDescription = kHAPCharacteristicDebugDescription_SerialNumber,
     .manufacturerDescription = NULL,
@@ -125,7 +125,7 @@ const HAPStringCharacteristic accessoryInformationSerialNumberCharacteristic = {
 
 const HAPStringCharacteristic accessoryInformationFirmwareRevisionCharacteristic = {
     .format = kHAPCharacteristicFormat_String,
-    .iid = 0x1006,
+    .iid = 0x7,
     .characteristicType = &kHAPCharacteristicType_FirmwareRevision,
     .debugDescription = kHAPCharacteristicDebugDescription_FirmwareRevision,
     .manufacturerDescription = NULL,
@@ -146,7 +146,7 @@ const HAPStringCharacteristic accessoryInformationFirmwareRevisionCharacteristic
 
 const HAPStringCharacteristic accessoryInformationHardwareRevisionCharacteristic = {
     .format = kHAPCharacteristicFormat_String,
-    .iid = 0x1007,
+    .iid = 0x8,
     .characteristicType = &kHAPCharacteristicType_HardwareRevision,
     .debugDescription = kHAPCharacteristicDebugDescription_HardwareRevision,
     .manufacturerDescription = NULL,
@@ -167,7 +167,7 @@ const HAPStringCharacteristic accessoryInformationHardwareRevisionCharacteristic
 
 const HAPStringCharacteristic accessoryInformationADKVersionCharacteristic = {
     .format = kHAPCharacteristicFormat_String,
-    .iid = 0x1008,
+    .iid = 0x9,
     .characteristicType = &kHAPCharacteristicType_ADKVersion,
     .debugDescription = kHAPCharacteristicDebugDescription_ADKVersion,
     .manufacturerDescription = NULL,
@@ -187,7 +187,7 @@ const HAPStringCharacteristic accessoryInformationADKVersionCharacteristic = {
 };
 
 const HAPService mgos_hap_accessory_information_service = {
-    .iid = 0x1000,
+    .iid = 0x1,  // Required by standard.
     .serviceType = &kHAPServiceType_AccessoryInformation,
     .debugDescription = kHAPServiceDebugDescription_AccessoryInformation,
     .name = NULL,
