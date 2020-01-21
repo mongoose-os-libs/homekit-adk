@@ -187,7 +187,7 @@ const HAPStringCharacteristic accessoryInformationADKVersionCharacteristic = {
 };
 
 const HAPService mgos_hap_accessory_information_service = {
-    .iid = 0x1,  // Required by standard.
+    .iid = 0x1, // Required by standard.
     .serviceType = &kHAPServiceType_AccessoryInformation,
     .debugDescription = kHAPServiceDebugDescription_AccessoryInformation,
     .name = NULL,

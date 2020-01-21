@@ -37,7 +37,7 @@ HAPPlatformLogEnabledTypes HAPPlatformLogGetEnabledTypes(const HAPLogObject* log
 
 void HAPPlatformLogCapture(
         const HAPLogObject* log,
-        HAPLogType type HAP_UNUSED,
+        HAPLogType type,
         const char* message,
         const void* _Nullable bufferBytes,
         size_t numBufferBytes) {
@@ -45,7 +45,24 @@ void HAPPlatformLogCapture(
     if (category == NULL) {
         category = "HAP";
     }
-    fprintf(stderr, "%s %s\n", category, message);
+    enum cs_log_level ll = LL_VERBOSE_DEBUG;
+    switch (type) {
+        case kHAPLogType_Debug:
+            ll = LL_DEBUG;
+            break;
+        case kHAPLogType_Info:
+            ll = LL_INFO;
+            break;
+        case kHAPLogType_Default:
+            ll = LL_WARN;
+            break;
+        case kHAPLogType_Error:
+            // fall through
+        case kHAPLogType_Fault:
+            ll = LL_ERROR;
+            break;
+    }
+    LOG(ll, ("%s %s", category, message));
     // Only log dumps at level 4 and above.
     if (numBufferBytes > 0 && cs_log_level >= LL_VERBOSE_DEBUG) {
         mg_hexdumpf(stderr, bufferBytes, numBufferBytes);
