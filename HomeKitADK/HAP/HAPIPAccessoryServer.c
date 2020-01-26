@@ -266,8 +266,6 @@ static void HAPIPSessionDestroy(HAPIPSession* ipSession) {
     HAPRawBufferZero(&ipSession->descriptor, sizeof ipSession->descriptor);
     HAPRawBufferZero(ipSession->inboundBuffer.bytes, ipSession->inboundBuffer.numBytes);
     HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
-    HAPRawBufferZero(
-            ipSession->eventNotifications, ipSession->numEventNotifications * sizeof *ipSession->eventNotifications);
 }
 
 static void collect_garbage(HAPAccessoryServerRef* server_) {
@@ -491,6 +489,8 @@ static void CloseSession(HAPIPSessionDescriptor* session) {
         session->numEventNotifications--;
         handle_characteristic_unsubscribe_request(session, characteristic, service, accessory);
     }
+    free(session->eventNotifications);
+    session->eventNotifications = NULL;
     if (session->securitySession.isOpen) {
         HAPLogDebug(&logObject, "session:%p:closing security context", (const void*) session);
         switch (session->securitySession.type) {
@@ -888,7 +888,6 @@ static void handle_characteristic_write_request(
             writeContext->status = kHAPIPAccessoryServerStatusCode_NotificationNotSupported;
         } else {
             writeContext->status = kHAPIPAccessoryServerStatusCode_Success;
-            HAPAssert(session->numEventNotifications <= session->maxEventNotifications);
             size_t i = 0;
             while ((i < session->numEventNotifications) &&
                    ((((HAPIPEventNotification*) &session->eventNotifications[i])->aid != writeContext->aid) ||
@@ -902,9 +901,13 @@ static void handle_characteristic_write_request(
                      (((HAPIPEventNotification*) &session->eventNotifications[i])->iid == writeContext->iid)));
             if (i == session->numEventNotifications) {
                 if (writeContext->ev == kHAPIPEventNotificationState_Enabled) {
-                    if (i == session->maxEventNotifications) {
+                    HAPIPEventNotificationRef *eventNotifications = realloc(
+                        session->eventNotifications,
+                        (session->numEventNotifications + 1) * sizeof *eventNotifications);
+                    if (eventNotifications == NULL) {
                         writeContext->status = kHAPIPAccessoryServerStatusCode_OutOfResources;
                     } else {
+                        session->eventNotifications = eventNotifications;
                         ((HAPIPEventNotification*) &session->eventNotifications[i])->aid = writeContext->aid;
                         ((HAPIPEventNotification*) &session->eventNotifications[i])->iid = writeContext->iid;
                         ((HAPIPEventNotification*) &session->eventNotifications[i])->flag = false;
@@ -926,6 +929,10 @@ static void handle_characteristic_write_request(
                     i++;
                 }
                 HAPAssert(i == session->numEventNotifications);
+                session->eventNotifications = realloc(
+                    session->eventNotifications,
+                    session->numEventNotifications * sizeof *session->eventNotifications);
+                HAPAssert(session->eventNotifications != NULL);  // Reducing size, must succeed.
                 handle_characteristic_unsubscribe_request(session, characteristic, service, accessory);
             }
         }
@@ -1762,7 +1769,6 @@ static int handle_characteristic_read_requests(
         if (c) {
             const HAPBaseCharacteristic* chr = c;
             HAPAssert(chr->iid == readContext->iid);
-            HAPAssert(session->numEventNotifications <= session->maxEventNotifications);
             j = 0;
             while ((j < session->numEventNotifications) &&
                    ((((HAPIPEventNotification*) &session->eventNotifications[j])->aid != readContext->aid) ||
@@ -3700,8 +3706,7 @@ static void HandlePendingTCPStream(HAPPlatformTCPStreamManagerRef tcpStreamManag
     t->outboundBuffer.limit = ipSession->outboundBuffer.numBytes;
     t->outboundBuffer.capacity = ipSession->outboundBuffer.numBytes;
     t->outboundBuffer.data = ipSession->outboundBuffer.bytes;
-    t->eventNotifications = ipSession->eventNotifications;
-    t->maxEventNotifications = ipSession->numEventNotifications;
+    t->eventNotifications = NULL;
     t->numEventNotifications = 0;
     t->numEventNotificationFlags = 0;
     t->eventNotificationStamp = 0;
@@ -3740,9 +3745,7 @@ static void engine_init(HAPAccessoryServerRef* server_) {
             if (server->ip.storage->sessions[j].inboundBuffer.numBytes !=
                         server->ip.storage->sessions[i].inboundBuffer.numBytes ||
                 server->ip.storage->sessions[j].outboundBuffer.numBytes !=
-                        server->ip.storage->sessions[i].outboundBuffer.numBytes ||
-                server->ip.storage->sessions[j].numEventNotifications !=
-                        server->ip.storage->sessions[i].numEventNotifications) {
+                        server->ip.storage->sessions[i].outboundBuffer.numBytes) {
                 break;
             }
         }
@@ -3757,16 +3760,6 @@ static void engine_init(HAPAccessoryServerRef* server_) {
                     "Storage configuration: sessions[%lu].outboundBuffer.numBytes = %lu",
                     (unsigned long) i,
                     (unsigned long) server->ip.storage->sessions[i].outboundBuffer.numBytes);
-            HAPLogDebug(
-                    &logObject,
-                    "Storage configuration: sessions[%lu].numEventNotifications = %lu",
-                    (unsigned long) i,
-                    (unsigned long) server->ip.storage->sessions[i].numEventNotifications);
-            HAPLogDebug(
-                    &logObject,
-                    "Storage configuration: sessions[%lu].eventNotifications = %lu",
-                    (unsigned long) i,
-                    (unsigned long) (server->ip.storage->sessions[i].numEventNotifications * sizeof(HAPIPEventNotificationRef)));
         } else {
             HAPLogDebug(
                     &logObject,
@@ -3780,18 +3773,6 @@ static void engine_init(HAPAccessoryServerRef* server_) {
                     (unsigned long) i,
                     (unsigned long) j - 1,
                     (unsigned long) server->ip.storage->sessions[i].outboundBuffer.numBytes);
-            HAPLogDebug(
-                    &logObject,
-                    "Storage configuration: sessions[%lu...%lu].numEventNotifications = %lu",
-                    (unsigned long) i,
-                    (unsigned long) j - 1,
-                    (unsigned long) server->ip.storage->sessions[i].numEventNotifications);
-            HAPLogDebug(
-                    &logObject,
-                    "Storage configuration: sessions[%lu...%lu].eventNotifications = %lu",
-                    (unsigned long) i,
-                    (unsigned long) j - 1,
-                    (unsigned long) (server->ip.storage->sessions[i].numEventNotifications * sizeof(HAPIPEventNotificationRef)));
         }
         i = j;
     }
@@ -3971,7 +3952,6 @@ static HAPError engine_raise_event_on_session_(
             (characteristic_ != server->ip.characteristicWriteRequestContext.characteristic) ||
             (service_ != server->ip.characteristicWriteRequestContext.service) ||
             (accessory_ != server->ip.characteristicWriteRequestContext.accessory)) {
-            HAPAssert(session->numEventNotifications <= session->maxEventNotifications);
             size_t j = 0;
             while ((j < session->numEventNotifications) &&
                    ((((HAPIPEventNotification*) &session->eventNotifications[j])->aid != aid) ||
@@ -4064,7 +4044,6 @@ static void Create(HAPAccessoryServerRef* server_, const HAPAccessoryServerOptio
         HAPIPSession* session = &storage->sessions[i];
         HAPPrecondition(session->inboundBuffer.bytes);
         HAPPrecondition(session->outboundBuffer.bytes);
-        HAPPrecondition(session->eventNotifications);
     }
     HAPRawBufferZero(storage->scratchBuffer.bytes, storage->scratchBuffer.numBytes);
     for (size_t i = 0; i < storage->numSessions; i++) {
@@ -4072,9 +4051,6 @@ static void Create(HAPAccessoryServerRef* server_, const HAPAccessoryServerOptio
         HAPRawBufferZero(&ipSession->descriptor, sizeof ipSession->descriptor);
         HAPRawBufferZero(ipSession->inboundBuffer.bytes, ipSession->inboundBuffer.numBytes);
         HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
-        HAPRawBufferZero(
-                ipSession->eventNotifications,
-                ipSession->numEventNotifications * sizeof *ipSession->eventNotifications);
     }
     server->ip.storage = options->ip.accessoryServerStorage;
 
@@ -4093,9 +4069,6 @@ static void PrepareStart(HAPAccessoryServerRef* server_) {
         HAPRawBufferZero(&ipSession->descriptor, sizeof ipSession->descriptor);
         HAPRawBufferZero(ipSession->inboundBuffer.bytes, ipSession->inboundBuffer.numBytes);
         HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
-        HAPRawBufferZero(
-                ipSession->eventNotifications,
-                ipSession->numEventNotifications * sizeof *ipSession->eventNotifications);
     }
 }
 

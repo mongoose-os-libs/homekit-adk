@@ -222,14 +222,11 @@ static void InitializeIP() {
     static HAPIPSession ipSessions[kHAPIPSessionStorage_DefaultNumElements];
     static uint8_t ipInboundBuffers[HAPArrayCount(ipSessions)][kHAPIPSession_DefaultInboundBufferSize];
     static uint8_t ipOutboundBuffers[HAPArrayCount(ipSessions)][kHAPIPSession_DefaultOutboundBufferSize];
-    static HAPIPEventNotificationRef ipEventNotifications[HAPArrayCount(ipSessions)][kAttributeCount];
     for (size_t i = 0; i < HAPArrayCount(ipSessions); i++) {
         ipSessions[i].inboundBuffer.bytes = ipInboundBuffers[i];
         ipSessions[i].inboundBuffer.numBytes = sizeof ipInboundBuffers[i];
         ipSessions[i].outboundBuffer.bytes = ipOutboundBuffers[i];
         ipSessions[i].outboundBuffer.numBytes = sizeof ipOutboundBuffers[i];
-        ipSessions[i].eventNotifications = ipEventNotifications[i];
-        ipSessions[i].numEventNotifications = HAPArrayCount(ipEventNotifications[i]);
     }
     static uint8_t ipScratchBuffer[kHAPIPSession_DefaultScratchBufferSize];
     static HAPIPAccessoryServerStorage ipAccessoryServerStorage = {

@@ -3649,19 +3649,6 @@ typedef struct {
          */
         size_t numBytes;
     } outboundBuffer;
-
-    /**
-     * Event notifications.
-     *
-     * - At least one of these structures must be allocated per HomeKit characteristic and service and must remain
-     *   valid while the accessory server is initialized.
-     */
-    HAPIPEventNotificationRef* eventNotifications;
-
-    /**
-     * Number of event notification structures.
-     */
-    size_t numEventNotifications;
 } HAPIPSession;
 
 /**
