@@ -7,7 +7,6 @@ RUN echo ========== Install dependencies ========== \
     git \
     make \
     perl \
-    python3-pip \
     unzip \
     wget \
     libasound2-dev \
@@ -15,11 +14,10 @@ RUN echo ========== Install dependencies ========== \
     libfaac-dev \
     libopus-dev \
     libsqlite3-dev \
-    libssl-dev
+    libssl-dev \
+    openssh-server \
+  && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get install -y gdb
-
-RUN echo ========== Cleanup ========== \
-  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build

@@ -4,8 +4,6 @@ This is a port of the official [Apple HomeKit ADK](https://github.com/mongoose-o
 
 Targeted platforms are ESP8266 and ESP32 for now.
 
-*Note*: Still WIP, watch this space.
-
 # Examples
 
 Example Mongoose OS app that uses this library can be found [here](https://github.com/mongoose-os-apps/example-homekit).

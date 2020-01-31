@@ -6,6 +6,7 @@
 
 #include "HAP+Internal.h"
 #include "HAPCrypto.h"
+#include "HAPPlatform.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -56,7 +57,7 @@ static void sha512_final(mbedtls_sha512_context* ctx, uint8_t md[SHA512_BYTES]) 
 #define WITH_BLINDING(X) \
     do { \
         uint8_t seed[64]; \
-        HAP_rand(seed, sizeof seed); \
+        HAPPlatformRandomNumberFill(seed, sizeof seed); \
         EDP_BLINDING_CTX ctx; \
         ed25519_Blinding_Init(&ctx, seed, sizeof seed); \
         X; \
@@ -95,7 +96,7 @@ int HAP_ed25519_verify(
 #endif
 
 static int blinding_rng(void* context HAP_UNUSED, uint8_t* buffer, size_t n) {
-    HAP_rand(buffer, n);
+    HAPPlatformRandomNumberFill(buffer, n);
     return 0;
 }
 
@@ -323,7 +324,21 @@ int HAP_srp_premaster_secret(
         const uint8_t priv_b[SRP_SECRET_KEY_BYTES],
         const uint8_t u[SRP_SCRAMBLING_PARAMETER_BYTES],
         const uint8_t v[SRP_VERIFIER_BYTES]) {
+    bool isAValid = false;
     BN_FROM_BYTES(A, pub_a, SRP_PUBLIC_KEY_BYTES, {
+        // Refer RFC 5054: https://tools.ietf.org/html/rfc5054
+        // Section 2.5.4
+        // Fail if A%N == 0
+        WITH_gN({
+            WITH_BN(rem, {
+                int ret = mbedtls_mpi_mod_mpi(&rem, &A, &N);
+                HAPAssert(ret == 0);
+                if (mbedtls_mpi_cmp_int(&rem, 0) != 0) {
+                    isAValid = true;
+                }
+            });
+        });
+
         BN_FROM_BYTES(b, priv_b, SRP_SECRET_KEY_BYTES, {
             BN_FROM_BYTES(u_, u, SRP_SCRAMBLING_PARAMETER_BYTES, {
                 BN_FROM_BYTES(v_, v, SRP_VERIFIER_BYTES, {
@@ -343,8 +358,7 @@ int HAP_srp_premaster_secret(
             });
         });
     });
-    // TODO: We are not checking for illegal A keys here (A*v^u == -1,0,1). Should we?
-    return 0;
+    return (isAValid) ? 0 : 1;
 }
 
 static size_t Count_Leading_Zeroes(const uint8_t* start, size_t n) {
@@ -671,9 +685,4 @@ void HAP_aes_ctr_done(HAP_aes_ctr_ctx* ctx) {
     memset(ctr_ctx, 0, sizeof *ctr_ctx);
     free(ctr_ctx);
     handle->ctx = NULL;
-}
-
-extern int mg_ssl_if_mbed_random(void *ctx, unsigned char *buf, size_t len);
-void HAP_rand(uint8_t* buffer, size_t n) {
-    mg_ssl_if_mbed_random(NULL, buffer, n);
 }

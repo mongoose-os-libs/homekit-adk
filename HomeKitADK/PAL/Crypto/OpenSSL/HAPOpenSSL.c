@@ -232,7 +232,21 @@ int HAP_srp_premaster_secret(
         const uint8_t priv_b[SRP_SECRET_KEY_BYTES],
         const uint8_t u[SRP_SCRAMBLING_PARAMETER_BYTES],
         const uint8_t v[SRP_VERIFIER_BYTES]) {
+    bool isAValid = false;
     WITH_BN(A, BN_bin2bn(pub_a, SRP_PUBLIC_KEY_BYTES, NULL), {
+        // Refer RFC 5054: https://tools.ietf.org/html/rfc5054
+        // Section 2.5.4
+        // Fail if A%N == 0
+        WITH_CTX(BN_CTX, BN_CTX_new(), {
+            WITH_BN(rem, BN_new(), {
+                int ret = BN_nnmod(rem, A, Get_gN_3072()->N, ctx);
+                HAPAssert(!!ret);
+                if (BN_is_zero(rem) == 0) {
+                    isAValid = true;
+                }
+            });
+        });
+
         WITH_BN(b, BN_bin2bn(priv_b, SRP_SECRET_KEY_BYTES, NULL), {
             WITH_BN(u_, BN_bin2bn(u, SRP_SCRAMBLING_PARAMETER_BYTES, NULL), {
                 WITH_BN(v_, BN_bin2bn(v, SRP_VERIFIER_BYTES, NULL), {
@@ -244,8 +258,7 @@ int HAP_srp_premaster_secret(
             });
         });
     });
-    // TODO: We are not checking for illegal A keys here (A*v^u == -1,0,1). Should we?
-    return 0;
+    return (isAValid) ? 0 : 1;
 }
 
 static size_t Count_Leading_Zeroes(const uint8_t* start, size_t n) {
@@ -565,9 +578,4 @@ void HAP_aes_ctr_done(HAP_aes_ctr_ctx* ctx) {
     EVP_CIPHER_CTX_Handle* handle = (EVP_CIPHER_CTX_Handle*) ctx;
     EVP_CIPHER_CTX_free(handle->ctx);
     handle->ctx = NULL;
-}
-
-void HAP_rand(uint8_t* buffer, size_t n) {
-    int ret = RAND_bytes(buffer, n);
-    HAPAssert(ret == 1);
 }

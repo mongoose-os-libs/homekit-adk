@@ -7,10 +7,13 @@ DEBUGGER := gdb
 SRC_DIRS_Linux := PAL/Linux
 CRYPTO_Linux := PAL/Crypto/OpenSSL
 
-CFLAGS_Linux := $(CFLAGS_IP) -ffunction-sections -fdata-sections -fsanitize=address
-LDFLAGS_Linux := -ldns_sd -pthread -lm -fsanitize=address
+CFLAGS_Linux := $(CFLAGS_IP) -ffunction-sections -fdata-sections
+LDFLAGS_Linux := -ldns_sd -pthread -lm
 ifeq ($(BUILD_TYPE),Release)
     LDFLAGS_Linux += -Wl,--gc-sections -Wl,--as-needed -Wl,--strip-all
+else
+    CFLAGS_Linux += -fsanitize=address
+    LDFLAGS_Linux += -fsanitize=address
 endif
 
 LINK_BEGIN_Linux := -Wl,--start-group
