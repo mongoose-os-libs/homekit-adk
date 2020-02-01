@@ -22,6 +22,7 @@
 
 #include "mgos_rpc.h"
 
+#include "HAPAccessorySetup.h"
 #include "HAPCrypto.h"
 
 static void mgos_hap_setup_info_handler(
@@ -39,7 +40,7 @@ static void mgos_hap_setup_info_handler(
     json_scanf(args.p, args.len, ri->args_fmt, &code, &salt, &verifier, &config_level, &reboot);
 
     if (code != NULL && (salt == NULL && verifier == NULL)) {
-        if (strlen(code) != 10) {
+        if (!HAPAccessorySetupIsValidSetupCode(code)) {
             mg_rpc_send_errorf(ri, 400, "invalid code");
             ri = NULL;
             goto out;
