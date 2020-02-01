@@ -122,6 +122,12 @@ static void setup_info_cb(int ev, void* ev_data, void* userdata) {
     (void) ev;
     (void) userdata;
 }
+
+bool mgos_hap_config_valid(void) {
+    HAPSetupInfo setupInfo;
+    return mgos_hap_setup_info_from_string(
+            &setupInfo, mgos_sys_config_get_hap_salt(), mgos_sys_config_get_hap_verifier());
+}
 #endif
 
 bool mgos_homekit_adk_init(void) {

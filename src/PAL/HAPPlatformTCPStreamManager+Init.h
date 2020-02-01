@@ -82,6 +82,7 @@ struct HAPPlatformTCPStreamManager {
     size_t maxTCPStreams;
 
     HAPNetworkPort port;
+    HAPNetworkPort actualPort;
     /**@endcond */
 };
 

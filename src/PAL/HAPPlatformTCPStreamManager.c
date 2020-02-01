@@ -26,7 +26,7 @@
 #define HAP_F_WRITE_PENDING MG_F_USER_3
 
 HAPNetworkPort HAPPlatformTCPStreamManagerGetListenerPort(HAPPlatformTCPStreamManagerRef tcpStreamManager) {
-    return tcpStreamManager->port;
+    return tcpStreamManager->actualPort;
 }
 
 bool HAPPlatformTCPStreamManagerIsListenerOpen(HAPPlatformTCPStreamManagerRef tcpStreamManager) {
@@ -51,7 +51,12 @@ void HAPPlatformTCPStreamManagerOpenListener(
         HAPPlatformTCPStreamListenerCallback callback,
         void* _Nullable context) {
     char buf[32];
-    snprintf(buf, sizeof(buf), "tcp://:%u", tcpStreamManager->port);
+    HAPNetworkPort port = tcpStreamManager->port;
+    if (port == kHAPNetworkPort_Any) {
+        static HAPNetworkPort anyPort = 9000; // Kinda hacky, but hey...
+        port = anyPort++;
+    }
+    snprintf(buf, sizeof(buf), "tcp://:%u", port);
     tcpStreamManager->listenerCallback = callback;
     tcpStreamManager->listenerCallbackContext = context;
     tcpStreamManager->listener = mg_bind(mgos_get_mgr(), buf, HAPMGListenerHandler, tcpStreamManager);
@@ -59,6 +64,8 @@ void HAPPlatformTCPStreamManagerOpenListener(
         LOG(LL_ERROR, ("Failed to create listener on %s!", buf));
         return;
     }
+    LOG(LL_INFO, ("Listening on %d", port));
+    tcpStreamManager->actualPort = port;
 }
 
 void HAPPlatformTCPStreamManagerCloseListener(HAPPlatformTCPStreamManagerRef tcpStreamManager) {
@@ -234,14 +241,9 @@ HAPError HAPPlatformTCPStreamWrite(
 void HAPPlatformTCPStreamManagerCreate(
         HAPPlatformTCPStreamManagerRef tcpStreamManager,
         const HAPPlatformTCPStreamManagerOptions* options) {
-    static HAPNetworkPort anyPort = 9000; // Kinda hacky, but hey...
     memset(tcpStreamManager, 0, sizeof(*tcpStreamManager));
     tcpStreamManager->maxTCPStreams = options->maxConcurrentTCPStreams;
-    if (options->port != kHAPNetworkPort_Any) {
-        tcpStreamManager->port = options->port;
-    } else {
-        tcpStreamManager->port = anyPort++;
-    }
+    tcpStreamManager->port = options->port;
 }
 
 void HAPPlatformTCPStreamManagerRelease(HAPPlatformTCPStreamManagerRef tcpStreamManager) {

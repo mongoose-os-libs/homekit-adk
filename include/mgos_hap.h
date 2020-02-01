@@ -101,9 +101,13 @@ bool mgos_hap_setup_info_from_string(
         const char* _Nonnull salt,
         const char* _Nonnull verifier);
 
+#ifdef MGOS_HAP_SIMPLE_CONFIG
+bool mgos_hap_config_valid(void);
+
 #ifdef MGOS_HAVE_RPC_COMMON
-void mgos_hap_add_rpc_service(void);
+void mgos_hap_add_rpc_service(HAPAccessoryServerRef * _Nonnull server, HAPAccessory * _Nonnull accessory, HAPPlatformKeyValueStoreRef _Nonnull kvs);
 #endif
+#endif  // MGOS_HAP_SIMPLE_CONFIG
 
 /*
  * Some common definitions for reuse.
