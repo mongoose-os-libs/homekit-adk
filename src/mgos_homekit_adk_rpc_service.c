@@ -67,10 +67,10 @@ static void mgos_hap_setup_handler(
     char* code = NULL;
     char *salt = NULL, *verifier = NULL;
     int config_level = 2;
-    bool reboot = false;
+    bool start_server = true;
     HAPSetupInfo setupInfo;
 
-    json_scanf(args.p, args.len, ri->args_fmt, &code, &salt, &verifier, &config_level, &reboot);
+    json_scanf(args.p, args.len, ri->args_fmt, &code, &salt, &verifier, &config_level, &start_server);
 
     if (code != NULL && (salt == NULL && verifier == NULL)) {
         if (!HAPAccessorySetupIsValidSetupCode(code)) {
@@ -111,8 +111,8 @@ static void mgos_hap_setup_handler(
 
     mg_rpc_send_responsef(ri, NULL);
 
-    if (reboot) {
-        mgos_system_restart_after(500);
+    if (start_server && HAPAccessoryServerGetState(s_server) == kHAPAccessoryServerState_Idle) {
+        HAPAccessoryServerStart(s_server, s_accessory);
     }
 
 out:
@@ -203,7 +203,7 @@ void mgos_hap_add_rpc_service(HAPAccessoryServerRef* server, HAPAccessory* acces
     mg_rpc_add_handler(
             mgos_rpc_get_global(),
             "HAP.Setup",
-            "{code: %Q, salt: %Q, verifier: %Q, config_level: %d, reboot: %B}",
+            "{code: %Q, salt: %Q, verifier: %Q, config_level: %d, start_server: %B}",
             mgos_hap_setup_handler,
             NULL);
     mg_rpc_add_handler(
