@@ -75,8 +75,8 @@ static void mgos_hap_setup_info_handler(
         goto out;
     }
 
-    cfg->hap.salt = salt;
-    cfg->hap.verifier = verifier;
+    mgos_conf_set_str(&cfg->hap.salt, salt);
+    mgos_conf_set_str(&cfg->hap.verifier, verifier);
 
     char* msg = NULL;
     if (!mgos_sys_config_save_level(cfg, (enum mgos_config_level) config_level, false, &msg)) {
@@ -85,11 +85,6 @@ static void mgos_hap_setup_info_handler(
         free(msg);
         goto out;
     }
-
-    cfg->hap.salt = NULL;
-    cfg->hap.verifier = NULL;
-
-    mgos_conf_free(mgos_config_schema(), cfg);
 
     mgos_sys_config_set_hap_salt(salt);
     mgos_sys_config_set_hap_verifier(verifier);
@@ -101,6 +96,9 @@ static void mgos_hap_setup_info_handler(
     }
 
 out:
+    if (cfg != NULL) {
+        mgos_conf_free(mgos_config_schema(), cfg);
+    }
     free(cfg);
     free(code);
     free(salt);
@@ -110,9 +108,8 @@ out:
 }
 
 void mgos_hap_add_rpc_service(void) {
-    struct mg_rpc* c = mgos_rpc_get_global();
     mg_rpc_add_handler(
-            c,
+            mgos_rpc_get_global(),
             "HAP.SetupInfo",
             "{code: %Q, salt: %Q, verifier: %Q, config_level: %d, reboot: %B}",
             mgos_hap_setup_info_handler,
