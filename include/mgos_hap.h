@@ -31,6 +31,10 @@
  * For other cases, see ADK documentation.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* HAP events */
 enum mgos_hap_event {
     /* This event corresponds to HAPPlatformAccessorySetupLoadSetupInfo.
@@ -130,3 +134,7 @@ extern const HAPService mgos_hap_protocol_information_service;
  * Uses IDs 0x1020 - 0x1024.
  */
 extern const HAPService mgos_hap_pairing_service;
+
+#ifdef __cplusplus
+}
+#endif
