@@ -97,8 +97,12 @@ static void HAPMGConnHandler(struct mg_connection* nc, int ev, void* ev_data HAP
                 hapEvent.hasSpaceAvailable = true;
             }
             break;
-        case MG_EV_CLOSE:
+        case MG_EV_CLOSE: {
+            char addr[32];
             ts->nc = NULL;
+            mg_sock_addr_to_str(&nc->sa, addr, sizeof(addr),
+                                MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_PORT);
+            LOG(LL_INFO, ("%p Closed HAP connection from %s", nc, addr));
             if (ts->interests.hasBytesAvailable) {
                 // Deliver EOF via read.
                 hapEvent.hasBytesAvailable = true;
@@ -110,6 +114,7 @@ static void HAPMGConnHandler(struct mg_connection* nc, int ev, void* ev_data HAP
                 free(ts);
             }
             break;
+        }
     }
     if (hapEvent.hasBytesAvailable || hapEvent.hasSpaceAvailable) {
         if (hapEvent.hasBytesAvailable) {
@@ -136,6 +141,7 @@ HAPError HAPPlatformTCPStreamManagerAcceptTCPStream(
             continue;
         }
         if (!(nc->flags & HAP_F_CONN_ACCEPTED)) {
+            char addr[32];
             HAPPlatformTCPStream* ts = (HAPPlatformTCPStream*) calloc(1, sizeof(*ts));
             if (tcpStream == NULL) {
                 return kHAPError_OutOfResources;
@@ -145,6 +151,9 @@ HAPError HAPPlatformTCPStreamManagerAcceptTCPStream(
             nc->handler = HAPMGConnHandler;
             nc->user_data = ts;
             *tcpStream = (HAPPlatformTCPStreamRef) ts;
+            mg_sock_addr_to_str(&nc->sa, addr, sizeof(addr),
+                                MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_PORT);
+            LOG(LL_INFO, ("%p Accepted HAP connection from %s", nc, addr));
             return kHAPError_None;
         }
     }
