@@ -210,6 +210,19 @@ HAPError HAPPlatformTCPStreamWrite(
         size_t maxBytes,
         size_t* numBytes);
 
+typedef struct {
+    /**
+     * Current connection stats.
+     */
+    size_t maxNumTCPStreams;
+    size_t numPendingTCPStreams;
+    size_t numActiveTCPStreams;
+} HAPPlatformTCPStreamManagerStats;
+
+HAPError HAPPlatformTCPStreamManagerGetStats(
+        HAPPlatformTCPStreamManagerRef tcpStreamManager,
+        HAPPlatformTCPStreamManagerStats* stats);
+
 #if __has_feature(nullability)
 #pragma clang assume_nonnull end
 #endif
