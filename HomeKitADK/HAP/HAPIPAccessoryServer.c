@@ -399,7 +399,8 @@ static void schedule_max_idle_time_timer(HAPAccessoryServerRef* server_) {
             CloseSession(session);
         } else if (
                 ((session->state == kHAPIPSessionState_Reading) || (session->state == kHAPIPSessionState_Writing)) &&
-                ((server->ip.numSessions == server->ip.storage->numSessions) ||
+                 // We (mos PAL) have our own connection management and eviction logic.
+                (// (server->ip.numSessions == server->ip.storage->numSessions) ||
                  (server->ip.state == kHAPIPAccessoryServerState_Stopping))) {
             HAPAssert(clock_now_ms >= session->stamp);
             HAPTime dt_ms = clock_now_ms - session->stamp;
