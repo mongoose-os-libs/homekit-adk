@@ -13,6 +13,11 @@ extern "C" {
 
 #include "HAPPlatform.h"
 
+/** Maximum TCP read/write size. */
+#ifndef kHAPIPAccessoryServerMaxIOSize
+#define kHAPIPAccessoryServerMaxIOSize ((size_t) 128)
+#endif
+
 #if __has_feature(nullability)
 #pragma clang assume_nonnull begin
 #endif

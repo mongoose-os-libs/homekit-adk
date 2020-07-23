@@ -3615,24 +3615,6 @@ typedef struct {
     HAPIPSessionDescriptorRef descriptor;
 
     /**
-     * Buffer to store received data.
-     */
-    struct {
-        /**
-         * Inbound buffer. Memory must be allocated and must remain valid while the accessory server is initialized.
-         *
-         * - It is recommended to allocate at least kHAPIPSession_DefaultInboundBufferSize bytes,
-         *   but the optimal size may vary depending on the accessory's attribute database.
-         */
-        void* bytes;
-
-        /**
-         * Size of inbound buffer.
-         */
-        size_t numBytes;
-    } inboundBuffer;
-
-    /**
      * Buffer to store pending data to be sent.
      */
     struct {

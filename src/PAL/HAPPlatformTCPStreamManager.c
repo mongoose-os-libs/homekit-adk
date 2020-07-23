@@ -128,6 +128,7 @@ static void HAPMGListenerHandler(struct mg_connection* nc, int ev, void* ev_data
                 nc->flags |= MG_F_CLOSE_IMMEDIATELY;
                 break;
             }
+            nc->recv_mbuf_limit = kHAPIPAccessoryServerMaxIOSize;
             nc->flags |= HAP_F_CONN_PENDING;
             tm->numPendingTCPStreams++;
             if (tm->numActiveTCPStreams < tm->maxNumTCPStreams) {
