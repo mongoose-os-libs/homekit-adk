@@ -39,6 +39,7 @@ extern "C" {
  * Service discovery initialization options.
  */
 typedef struct {
+    char dummy;
 } HAPPlatformServiceDiscoveryOptions;
 
 /**

@@ -54,7 +54,8 @@ extern "C" {
  * Accessory setup manager initialization options.
  */
 typedef struct {
-    // Noothing.
+    // Nothing.
+    char dummy;
 } HAPPlatformAccessorySetupOptions;
 
 /**
@@ -62,6 +63,7 @@ typedef struct {
  */
 struct HAPPlatformAccessorySetup {
     // Opaque type. Do not access the instance fields directly.
+    char dummy;
 };
 
 /**
