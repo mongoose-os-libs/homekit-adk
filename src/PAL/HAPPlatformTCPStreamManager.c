@@ -29,6 +29,8 @@
 
 #define HAP_MAX_PENDING_CONNECTIONS 5
 #define HAP_EVICT_MIN_IDLE_SECONDS 3
+// Stagger inbound connections, 1 every 2 seconds.
+#define HAP_ACCEPT_MIN_INTERVAL_SECONDS 3
 
 HAPNetworkPort HAPPlatformTCPStreamManagerGetListenerPort(HAPPlatformTCPStreamManagerRef tcpStreamManager) {
     return tcpStreamManager->actualPort;
@@ -40,8 +42,8 @@ bool HAPPlatformTCPStreamManagerIsListenerOpen(HAPPlatformTCPStreamManagerRef tc
 
 static struct mg_connection* HAPMGListenerGetNextPendingConnection(HAPPlatformTCPStreamManagerRef tm) {
     struct mg_mgr* mgr = tm->listener->mgr;
-    struct mg_connection *nc = NULL, *result = NULL;
-    for (nc = mg_next(mgr, NULL); nc != NULL; nc = mg_next(mgr, nc)) {
+    struct mg_connection* result = NULL;
+    for (struct mg_connection* nc = mg_next(mgr, NULL); nc != NULL; nc = mg_next(mgr, nc)) {
         if (nc->listener != tm->listener) {
             continue;
         }
@@ -57,30 +59,28 @@ static struct mg_connection* HAPMGListenerGetNextPendingConnection(HAPPlatformTC
 
 static void HAPMGListenerEvictOldestConnection(HAPPlatformTCPStreamManagerRef tm) {
     struct mg_mgr* mgr = tm->listener->mgr;
-    struct mg_connection *nc = NULL, *oldest = NULL;
     HAPPlatformTCPStream* tsOldest = NULL;
-    for (nc = mg_next(mgr, NULL); nc != NULL; nc = mg_next(mgr, nc)) {
+    for (struct mg_connection* nc = mg_next(mgr, NULL); nc != NULL; nc = mg_next(mgr, nc)) {
         if (nc->listener != tm->listener) {
             continue;
         }
         if (!(nc->flags & HAP_F_CONN_ACCEPTED)) {
             continue;
         }
-        if (oldest == NULL) {
-            oldest = nc;
-            tsOldest = (HAPPlatformTCPStream*) nc->user_data;
-        } else {
-            HAPPlatformTCPStream* ts = (HAPPlatformTCPStream*) nc->user_data;
-            if (ts->lastRead < tsOldest->lastRead) {
-                oldest = nc;
-                tsOldest = ts;
-            }
+        if ((nc->flags & MG_F_SEND_AND_CLOSE) != 0) {
+            // Already closing.
+            return;
+        }
+        HAPPlatformTCPStream* ts = (HAPPlatformTCPStream*) nc->user_data;
+        if (ts == NULL) {
+            LOG(LL_ERROR, ("%p NULL ts", nc));
+            continue;
+        }
+        if (tsOldest == NULL || ts->lastRead < tsOldest->lastRead) {
+            tsOldest = ts;
         }
     }
-    if (oldest == NULL)
-        return;
-    if ((oldest->flags & MG_F_SEND_AND_CLOSE) != 0) {
-        // Already closing.
+    if (tsOldest == NULL) {
         return;
     }
     // Wait until connection is inactive for at least 5 seconds.
@@ -88,12 +88,12 @@ static void HAPMGListenerEvictOldestConnection(HAPPlatformTCPStreamManagerRef tm
         return;
     }
     char addr[32];
-    mg_sock_addr_to_str(&oldest->sa, addr, sizeof(addr), MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_PORT);
-    LOG(LL_WARN, ("%p %s Evicting HAP connection", oldest, addr));
-    oldest->flags |= MG_F_SEND_AND_CLOSE;
+    mg_sock_addr_to_str(&tsOldest->nc->sa, addr, sizeof(addr), MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_PORT);
+    LOG(LL_WARN, ("%p %s ts %p Evicting HAP connection", tsOldest->nc, addr, tsOldest));
+    tsOldest->nc->flags |= MG_F_SEND_AND_CLOSE;
 }
 
-static void HAPMGListenerConnectionClosed(HAPPlatformTCPStreamManagerRef tm, struct mg_connection* nc) {
+static void HAPMGListenerConnectionClosed(HAPPlatformTCPStreamManagerRef tm, struct mg_connection* nc, int i) {
     char addr[32];
     if (nc->listener != tm->listener)
         return;
@@ -102,12 +102,13 @@ static void HAPMGListenerConnectionClosed(HAPPlatformTCPStreamManagerRef tm, str
     }
     mg_sock_addr_to_str(&nc->sa, addr, sizeof(addr), MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_PORT);
     LOG(LL_INFO,
-        ("%p %s HAP connection closed, ns %u/%u/%u",
+        ("%p %s HAP connection closed, ns %u/%u/%u i %d",
          nc,
          addr,
          (unsigned) tm->numPendingTCPStreams,
          (unsigned) tm->numActiveTCPStreams,
-         (unsigned) tm->maxNumTCPStreams));
+         (unsigned) tm->maxNumTCPStreams,
+         i));
 }
 
 static void HAPMGListenerHandler(struct mg_connection* nc, int ev, void* ev_data, void* userdata) {
@@ -123,29 +124,29 @@ static void HAPMGListenerHandler(struct mg_connection* nc, int ev, void* ev_data
                  (unsigned) tm->numPendingTCPStreams,
                  (unsigned) tm->numActiveTCPStreams,
                  (unsigned) tm->maxNumTCPStreams));
+            nc->recv_mbuf_limit = kHAPIPAccessoryServerMaxIOSize;
             if (tm->numPendingTCPStreams >= HAP_MAX_PENDING_CONNECTIONS) {
                 LOG(LL_ERROR, ("%p %s Too many pending connections, dropping", nc, addr));
-                nc->flags |= MG_F_CLOSE_IMMEDIATELY;
+                mg_send_response_line(nc, 503, "Content-Type: application/hap+json\r\nContent-Length: 17\r\n");
+                mg_printf(nc, "{\"status\":-70407}");
+                nc->flags |= MG_F_SEND_AND_CLOSE;
                 break;
             }
-            nc->recv_mbuf_limit = kHAPIPAccessoryServerMaxIOSize;
             nc->flags |= HAP_F_CONN_PENDING;
             tm->numPendingTCPStreams++;
-            if (tm->numActiveTCPStreams < tm->maxNumTCPStreams) {
-                tm->listenerCallback(tm, tm->listenerCallbackContext);
-            } else {
-                HAPMGListenerEvictOldestConnection(tm);
-            }
-            break;
         }
+            // fallthrough
         case MG_EV_POLL:
             // fallthrough
         case MG_EV_TIMER: {
-            if (tm->numPendingTCPStreams == 0)
+            if (tm->numPendingTCPStreams == 0) {
                 break;
+            }
             if (tm->numActiveTCPStreams < tm->maxNumTCPStreams) {
-                // We need to give session GC a chance to run.
-                if (mgos_uptime_micros() - tm->lastCloseTS > 50000) {
+                int64_t now = mgos_uptime_micros();
+                // Give session GC a chance to run to release session.
+                if (now - tm->lastCloseTS > 50000 &&
+                    now - tm->lastAcceptTS > HAP_ACCEPT_MIN_INTERVAL_SECONDS * 1000000) {
                     tm->listenerCallback(tm, tm->listenerCallbackContext);
                 }
             } else {
@@ -154,7 +155,7 @@ static void HAPMGListenerHandler(struct mg_connection* nc, int ev, void* ev_data
             break;
         }
         case MG_EV_CLOSE: {
-            HAPMGListenerConnectionClosed(tm, nc);
+            HAPMGListenerConnectionClosed(tm, nc, 1);
             break;
         }
     }
@@ -180,6 +181,7 @@ void HAPPlatformTCPStreamManagerOpenListener(
         LOG(LL_ERROR, ("Failed to create listener on %s!", buf));
         return;
     }
+    tcpStreamManager->listener->recv_mbuf_limit = kHAPIPAccessoryServerMaxIOSize;
     LOG(LL_INFO, ("Listening on %d", port));
     tcpStreamManager->actualPort = port;
 }
@@ -196,7 +198,7 @@ static void HAPMGConnHandler(struct mg_connection* nc, int ev, void* ev_data HAP
     HAPPlatformTCPStream* ts = (HAPPlatformTCPStream*) userdata;
     HAPPlatformTCPStreamEvent hapEvent = { 0 };
     if (ev == MG_EV_CLOSE) {
-        HAPMGListenerConnectionClosed(tm, nc);
+        HAPMGListenerConnectionClosed(tm, nc, 2);
     }
     if (ts == NULL) {
         nc->flags |= MG_F_CLOSE_IMMEDIATELY;
@@ -210,11 +212,11 @@ static void HAPMGConnHandler(struct mg_connection* nc, int ev, void* ev_data HAP
         case MG_EV_SEND:
             // fallthrough
         case MG_EV_TIMER:
-            if (ts->interests.hasBytesAvailable && nc->recv_mbuf.len > 0 && !(nc->flags & HAP_F_READ_PENDING)) {
-                hapEvent.hasBytesAvailable = true;
-            }
             if (ts->interests.hasSpaceAvailable && nc->send_mbuf.len == 0 && !(nc->flags & HAP_F_WRITE_PENDING)) {
                 hapEvent.hasSpaceAvailable = true;
+            }
+            if (ts->interests.hasBytesAvailable && nc->recv_mbuf.len > 0 && !(nc->flags & HAP_F_READ_PENDING)) {
+                hapEvent.hasBytesAvailable = true;
             }
             break;
         case MG_EV_CLOSE: {
@@ -222,28 +224,28 @@ static void HAPMGConnHandler(struct mg_connection* nc, int ev, void* ev_data HAP
             if (ts->interests.hasBytesAvailable) {
                 // Deliver EOF via read.
                 hapEvent.hasBytesAvailable = true;
-            } else if (ts->interests.hasBytesAvailable) {
+            } else if (ts->interests.hasSpaceAvailable) {
                 // Deliver EOF via write.
                 hapEvent.hasSpaceAvailable = true;
             } else {
-                // Release the stream context.
-                free(ts);
+                LOG(LL_ERROR, ("%p %p orphaned!", nc, ts));
             }
             break;
         }
     }
-    if (hapEvent.hasBytesAvailable || hapEvent.hasSpaceAvailable) {
+    if (ts->callback && (hapEvent.hasBytesAvailable || hapEvent.hasSpaceAvailable)) {
+        // Only one of hasSpaceAvailable / hasBytesAvailable must be set.
+        // If we have both, prefer draining output.
+        if (hapEvent.hasBytesAvailable && hapEvent.hasSpaceAvailable) {
+            hapEvent.hasBytesAvailable = false;
+        }
         if (hapEvent.hasBytesAvailable) {
             nc->flags |= HAP_F_READ_PENDING;
         }
         if (hapEvent.hasSpaceAvailable) {
             nc->flags |= HAP_F_WRITE_PENDING;
         }
-        ts->callback(
-                (HAPPlatformTCPStreamManagerRef) nc->listener->user_data,
-                (HAPPlatformTCPStreamRef) ts,
-                hapEvent,
-                ts->context);
+        ts->callback(ts->tm, (HAPPlatformTCPStreamRef) ts, hapEvent, ts->context);
     }
 }
 
@@ -260,6 +262,7 @@ HAPError HAPPlatformTCPStreamManagerAcceptTCPStream(
         return kHAPError_OutOfResources;
     }
     ts->nc = nc;
+    ts->tm = tm;
     nc->flags &= ~HAP_F_CONN_PENDING;
     nc->flags |= HAP_F_CONN_ACCEPTED;
     tm->numPendingTCPStreams--;
@@ -276,7 +279,9 @@ HAPError HAPPlatformTCPStreamManagerAcceptTCPStream(
          (unsigned) tm->numActiveTCPStreams,
          (unsigned) tm->maxNumTCPStreams,
          ts));
-    ts->lastRead = mgos_uptime_micros();
+    int64_t now = mgos_uptime_micros();
+    tm->lastAcceptTS = now;
+    ts->lastRead = now;
     return kHAPError_None;
 }
 
@@ -309,6 +314,22 @@ void HAPPlatformTCPStreamClose(HAPPlatformTCPStreamManagerRef tm, HAPPlatformTCP
     free(ts);
 }
 
+static void HAPPlatformTCPStreamDeliverEOF(void* arg) {
+    HAPPlatformTCPStream* ts = (HAPPlatformTCPStream*) arg;
+    HAPPlatformTCPStreamEvent hapEvent = { 0 };
+    if (ts->callback == NULL || !(ts->interests.hasBytesAvailable || ts->interests.hasSpaceAvailable)) {
+        LOG(LL_ERROR, ("ts %p orphaned for good", ts));
+        return;
+    }
+    LOG(LL_ERROR, ("ts %p closing orphaned stream", ts));
+    if (ts->interests.hasBytesAvailable) {
+        hapEvent.hasBytesAvailable = true;
+    } else if (ts->interests.hasSpaceAvailable) {
+        hapEvent.hasSpaceAvailable = true;
+    }
+    ts->callback((HAPPlatformTCPStreamManagerRef) ts->tm, (HAPPlatformTCPStreamRef) ts, hapEvent, ts->context);
+}
+
 void HAPPlatformTCPStreamUpdateInterests(
         HAPPlatformTCPStreamManagerRef tcpStreamManager HAP_UNUSED,
         HAPPlatformTCPStreamRef tcpStream,
@@ -322,6 +343,10 @@ void HAPPlatformTCPStreamUpdateInterests(
     ts->interests = interests;
     ts->callback = callback;
     ts->context = context;
+    if (ts->nc == NULL) {
+        // This is an orphaned session, create an artificial EOF event.
+        mgos_invoke_cb(HAPPlatformTCPStreamDeliverEOF, ts, false /* from_isr */);
+    }
 }
 
 HAPError HAPPlatformTCPStreamRead(

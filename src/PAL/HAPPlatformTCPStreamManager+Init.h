@@ -62,6 +62,7 @@ struct mg_connection;
 /**@cond */
 typedef struct {
     struct mg_connection* nc;
+    HAPPlatformTCPStreamManagerRef tm;
     HAPPlatformTCPStreamEvent interests;
     HAPPlatformTCPStreamEventCallback _Nullable callback;
     void* _Nullable context;
@@ -82,6 +83,7 @@ struct HAPPlatformTCPStreamManager {
     size_t maxNumTCPStreams;
     size_t numPendingTCPStreams;
     size_t numActiveTCPStreams;
+    int64_t lastAcceptTS;
     int64_t lastCloseTS;
 
     HAPNetworkPort port;
