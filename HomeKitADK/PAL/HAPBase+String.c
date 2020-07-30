@@ -6,6 +6,8 @@
 
 #include "HAPPlatform.h"
 
+#include <stdio.h>
+
 HAP_PRINTFLIKE(3, 4)
 HAP_RESULT_USE_CHECK
 HAPError HAPStringWithFormat(char* bytes, size_t maxBytes, const char* format, ...) {
@@ -21,7 +23,7 @@ HAP_RESULT_USE_CHECK
 HAPError HAPStringWithFormatAndArguments(char* bytes, size_t maxBytes, const char* format, va_list arguments) {
     HAPPrecondition(bytes);
     HAPPrecondition(format);
-
+#if 0
     char c = format[0];
     size_t i = 1;
     size_t n = 0;
@@ -178,6 +180,12 @@ HAPError HAPStringWithFormatAndArguments(char* bytes, size_t maxBytes, const cha
         c = format[i++];
     }
     bytes[n] = 0;
+#else
+    int ret = vsnprintf(bytes, maxBytes, format, arguments);
+    if (ret < 0 || ret >= (int) maxBytes) {
+        return kHAPError_OutOfResources;
+    }
+#endif
     return kHAPError_None;
 }
 
