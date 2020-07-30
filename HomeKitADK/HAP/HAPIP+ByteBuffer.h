@@ -32,6 +32,7 @@ typedef struct {
     size_t position;
     size_t limit;
     char* data;
+    bool isDynamic;
 } HAPIPByteBuffer;
 
 /**
@@ -69,6 +70,25 @@ void HAPIPByteBufferShiftLeft(HAPIPByteBuffer* byteBuffer, size_t numBytes);
 HAP_PRINTFLIKE(2, 3)
 HAP_RESULT_USE_CHECK
 HAPError HAPIPByteBufferAppendStringWithFormat(HAPIPByteBuffer* byteBuffer, const char* format, ...);
+
+/**
+ * Ensures that the buffer has at least numBytes headroom by reallocating if necessary.
+ *
+ * @param      byteBuffer           Byte buffer.
+ * @param      numBytes             Desired headroom, in bytes.
+ *
+ * @return kHAPError_None           If successful.
+ * @return kHAPError_OutOfResources If memory could not be allocated.
+ */
+HAP_RESULT_USE_CHECK
+HAPError HAPIPByteBufferEnsureHeadroom(HAPIPByteBuffer* byteBuffer, size_t numBytes);
+
+/**
+ * Trims the buffer's capacity to the current limit.
+ *
+ * @param      byteBuffer           Byte buffer.
+ */
+void HAPIPByteBufferTrim(HAPIPByteBuffer* byteBuffer);
 
 #if __has_feature(nullability)
 #pragma clang assume_nonnull end

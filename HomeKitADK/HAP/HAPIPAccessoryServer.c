@@ -2896,21 +2896,6 @@ static void handle_http(HAPIPSessionDescriptor* session) {
         handle_http_request(session);
         HAPIPByteBuffer* b = &session->inboundBuffer;
         HAPIPByteBufferShiftLeft(b, requestLen);
-        if (b->limit < b->capacity) {
-            char* newData = realloc(b->data, b->limit);
-            HAPLogDebug(
-                    &logObject,
-                    "BUF %p: shrink %u -> %u, %p -> %p",
-                    b,
-                    (unsigned) b->capacity,
-                    (unsigned) b->limit,
-                    b->data,
-                    newData);
-            if (newData != NULL || b->limit == 0) {
-                b->data = newData;
-                b->capacity = b->limit;
-            }
-        }
         if (session->accessorySerializationIsInProgress) {
             // Session is already prepared for writing
             HAPAssert(session->outboundBuffer.data);
@@ -3594,26 +3579,13 @@ static void ReadInboundData(HAPIPSessionDescriptor* session) {
     HAPAssert(b->limit <= b->capacity);
 
     if (b->limit - b->position <= 1) {
-        size_t newCapacity = b->capacity + kHAPIPAccessoryServerMaxIOSize;
         char* prevData = b->data;
-        char* newData = realloc(b->data, newCapacity);
-        HAPLogDebug(
-                &logObject,
-                "BUF %p: grow %u -> %u, %p -> %p",
-                b,
-                (unsigned) b->capacity,
-                (unsigned) newCapacity,
-                prevData,
-                newData);
-        if (newData == NULL) {
-            HAPLogDebug(&logObject, "error:Failed to grow %s.", "inboundBuffer");
+        err = HAPIPByteBufferEnsureHeadroom(b, kHAPIPAccessoryServerMaxIOSize + 1);
+        if (err) {
             CloseSession(session);
             return;
         }
-        b->data = newData;
-        b->capacity = newCapacity;
-        b->limit = b->capacity;
-        if (newData != prevData) {
+        if (b->data != prevData) {
             // Buffer has been reallocated, reset HTTP parser context.
             prepare_reading_request(session);
         }
@@ -3745,6 +3717,7 @@ static void HandlePendingTCPStream(HAPPlatformTCPStreamManagerRef tcpStreamManag
     t->inboundBuffer.limit = 0;
     t->inboundBuffer.capacity = 0;
     t->inboundBuffer.data = NULL;
+    t->inboundBuffer.isDynamic = true;
     t->inboundBufferMark = 0;
     t->outboundBuffer.position = 0;
     t->outboundBuffer.limit = ipSession->outboundBuffer.numBytes;
