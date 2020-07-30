@@ -192,7 +192,8 @@ HAPError HAPIPAccessoryProtocolGetCharacteristicReadRequests(
                         HAPAssert(k <= i);
                         HAPAssert(i <= numBytes);
                         if ((k < i) && ((i == numBytes) || ((bytes[i] < '0') || (bytes[i] > '9')))) {
-                            HAPIPReadContextRef* readContexts2 = realloc(*readContexts, (*numReadContexts + 1) * sizeof *readContexts2);
+                            HAPIPReadContextRef* readContexts2 =
+                                    realloc(*readContexts, (*numReadContexts + 1) * sizeof *readContexts2);
                             if (readContexts2 != NULL) {
                                 HAPIPReadContext* readContext = (HAPIPReadContext*) &readContexts2[*numReadContexts];
                                 HAPRawBufferZero(readContext, sizeof *readContext);

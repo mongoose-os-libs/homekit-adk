@@ -263,9 +263,9 @@ static void HAPIPSessionDestroy(HAPIPSession* ipSession) {
 
     HAPLogDebug(&logObject, "session:%p:releasing session", (const void*) session);
 
-    free(session->inboundBuffer.data);
+    HAPIPByteBufferClear(&session->inboundBuffer);
+    HAPIPByteBufferClear(&session->outboundBuffer);
     HAPRawBufferZero(&ipSession->descriptor, sizeof ipSession->descriptor);
-    HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
 }
 
 static void collect_garbage(HAPAccessoryServerRef* server_) {
@@ -542,10 +542,12 @@ static void OpenSecuritySession(HAPIPSessionDescriptor* session) {
 }
 
 static void write_msg(HAPIPByteBuffer* b, const char* msg) {
-    HAPError err;
-
-    err = HAPIPByteBufferAppendStringWithFormat(b, "%s", msg);
-    HAPAssert(!err);
+    size_t strLen = HAPStringGetNumBytes(msg);
+    HAPError err = HAPIPByteBufferEnsureHeadroom(b, strLen);
+    if (!err) {
+        HAPRawBufferCopyBytes(&b->data[b->position], msg, strLen);
+        b->position += strLen;
+    }
 }
 
 static void prepare_reading_request(HAPIPSessionDescriptor* session) {
@@ -646,7 +648,7 @@ static void write_characteristic_write_response(
     size_t content_length, mark;
 
     HAPAssert(contexts);
-    HAPAssert(session->outboundBuffer.data);
+    HAPAssert(session->outboundBuffer.data || session->outboundBuffer.isDynamic);
     HAPAssert(session->outboundBuffer.position <= session->outboundBuffer.limit);
     HAPAssert(session->outboundBuffer.limit <= session->outboundBuffer.capacity);
     content_length = HAPIPAccessoryProtocolGetNumCharacteristicWriteResponseBytes(
@@ -661,6 +663,7 @@ static void write_characteristic_write_response(
                 "Content-Length: %lu\r\n\r\n",
                 (unsigned long) content_length);
         HAPAssert(!err);
+        HAPIPByteBufferEnsureHeadroom(&session->outboundBuffer, content_length);
         if (content_length <= session->outboundBuffer.limit - session->outboundBuffer.position) {
             mark = session->outboundBuffer.position;
             err = HAPIPAccessoryProtocolGetCharacteristicWriteResponseBytes(
@@ -933,7 +936,8 @@ static void handle_characteristic_write_request(
                 session->eventNotifications =
                         realloc(session->eventNotifications,
                                 session->numEventNotifications * sizeof *session->eventNotifications);
-                HAPAssert(session->eventNotifications != NULL); // Reducing size, must succeed.
+                // Reducing size, must succeed.
+                HAPAssert(session->eventNotifications != NULL || session->numEventNotifications == 0);
                 handle_characteristic_unsubscribe_request(session, characteristic, service, accessory);
             }
         }
@@ -1858,7 +1862,7 @@ static void get_characteristics(HAPIPSessionDescriptor* session) {
                         session, kHAPIPSessionContext_GetCharacteristics, readContexts, contexts_count, &data_buffer);
                 content_length = HAPIPAccessoryProtocolGetNumCharacteristicReadResponseBytes(
                         HAPNonnull(session->server), readContexts, contexts_count, &parameters);
-                HAPAssert(session->outboundBuffer.data);
+                HAPAssert(session->outboundBuffer.data || session->outboundBuffer.isDynamic);
                 HAPAssert(session->outboundBuffer.position <= session->outboundBuffer.limit);
                 HAPAssert(session->outboundBuffer.limit <= session->outboundBuffer.capacity);
                 mark = session->outboundBuffer.position;
@@ -1877,6 +1881,7 @@ static void get_characteristics(HAPIPSessionDescriptor* session) {
                             "Content-Length: %lu\r\n\r\n",
                             (unsigned long) content_length);
                     HAPAssert(!err);
+                    HAPIPByteBufferEnsureHeadroom(&session->outboundBuffer, content_length);
                     if (content_length <= session->outboundBuffer.limit - session->outboundBuffer.position) {
                         mark = session->outboundBuffer.position;
                         err = HAPIPAccessoryProtocolGetCharacteristicReadResponseBytes(
@@ -1919,8 +1924,7 @@ static void handle_accessory_serialization(HAPIPSessionDescriptor* session) {
 
     HAPError err;
 
-    HAPAssert(session->outboundBuffer.data);
-    HAPAssert(session->outboundBuffer.capacity);
+    HAPAssert(session->outboundBuffer.data || session->outboundBuffer.isDynamic);
 
     if (session->accessorySerializationIsInProgress) {
         HAPAssert(session->outboundBuffer.position == session->outboundBuffer.limit);
@@ -1947,10 +1951,11 @@ static void handle_accessory_serialization(HAPIPSessionDescriptor* session) {
     if ((session->outboundBuffer.position < session->outboundBuffer.limit) &&
         (session->outboundBuffer.position < kHAPIPSecurityProtocol_MaxFrameBytes) &&
         !HAPIPAccessorySerializationIsComplete(&session->accessorySerializationContext)) {
+        HAPIPByteBufferEnsureHeadroom(&session->outboundBuffer, kHAPIPAccessoryServerMaxIOSize);
         size_t numBytesSerialized;
-        size_t maxBytes = session->outboundBuffer.limit - session->outboundBuffer.position;
-        size_t minBytes =
-                kHAPIPSecurityProtocol_MaxFrameBytes < maxBytes ? kHAPIPSecurityProtocol_MaxFrameBytes : maxBytes;
+        size_t maxBytes = session->outboundBuffer.limit - session->outboundBuffer.position - 20;
+        size_t minBytes = maxBytes / 2;
+        // kHAPIPSecurityProtocol_MaxFrameBytes < maxBytes ? kHAPIPSecurityProtocol_MaxFrameBytes : maxBytes;
         err = HAPIPAccessorySerializeReadResponse(
                 &session->accessorySerializationContext,
                 HAPNonnull(session->server),
@@ -1961,7 +1966,7 @@ static void handle_accessory_serialization(HAPIPSessionDescriptor* session) {
                 &numBytesSerialized);
         if (err) {
             HAPAssert(err == kHAPError_OutOfResources);
-            HAPLogError(&logObject, "Invalid configuration (outbound buffer too small).");
+            HAPLogError(&logObject, "Invalid configuration (outbound buffer too small). %d", (int) maxBytes);
             HAPFatalError();
         }
         HAPAssert(numBytesSerialized > 0);
@@ -1976,6 +1981,8 @@ static void handle_accessory_serialization(HAPIPSessionDescriptor* session) {
         err = HAPStringWithFormat(protocolBytes, sizeof protocolBytes, "%zX\r\n", numBytesSerialized);
         HAPAssert(!err);
         size_t numProtocolBytes = HAPStringGetNumBytes(protocolBytes);
+
+        HAPIPByteBufferEnsureHeadroom(&session->outboundBuffer, numProtocolBytes + numBytesSerialized);
 
         if (numProtocolBytes > session->outboundBuffer.limit - session->outboundBuffer.position) {
             HAPLogError(&logObject, "Invalid configuration (outbound buffer too small).");
@@ -2001,6 +2008,8 @@ static void handle_accessory_serialization(HAPIPSessionDescriptor* session) {
         }
         HAPAssert(!err);
         numProtocolBytes = HAPStringGetNumBytes(protocolBytes);
+
+        HAPIPByteBufferEnsureHeadroom(&session->outboundBuffer, numProtocolBytes);
 
         if (numProtocolBytes > session->outboundBuffer.limit - session->outboundBuffer.position) {
             HAPLogError(&logObject, "Invalid configuration (outbound buffer too small).");
@@ -2032,6 +2041,7 @@ static void handle_accessory_serialization(HAPIPSessionDescriptor* session) {
                     session->outboundBuffer.limit - session->outboundBuffer.position - numFrameBytes;
 
             size_t numEncryptedBytes = HAPIPSecurityProtocolGetNumEncryptedBytes(numFrameBytes);
+            HAPIPByteBufferEnsureHeadroom(&session->outboundBuffer, numEncryptedBytes + numUnencryptedBytes);
             if (numEncryptedBytes >
                 session->outboundBuffer.capacity - session->outboundBuffer.position - numUnencryptedBytes) {
                 HAPLogError(&logObject, "Invalid configuration (outbound buffer too small).");
@@ -2084,7 +2094,7 @@ static void get_accessories(HAPIPSessionDescriptor* session) {
 
     HAPError err;
 
-    HAPAssert(session->outboundBuffer.data);
+    HAPAssert(session->outboundBuffer.data || session->outboundBuffer.isDynamic);
     HAPAssert(session->outboundBuffer.position <= session->outboundBuffer.limit);
     HAPAssert(session->outboundBuffer.limit <= session->outboundBuffer.capacity);
     err = HAPIPByteBufferAppendStringWithFormat(
@@ -2154,7 +2164,7 @@ static void handle_pairing_data(
                     if (HAPAccessoryServerIsPaired(HAPNonnull(session->server)) != pairing_status) {
                         HAPIPServiceDiscoverySetHAPService(HAPNonnull(session->server));
                     }
-                    HAPAssert(session->outboundBuffer.data);
+                    HAPAssert(session->outboundBuffer.data || session->outboundBuffer.isDynamic);
                     HAPAssert(session->outboundBuffer.position <= session->outboundBuffer.limit);
                     HAPAssert(session->outboundBuffer.limit <= session->outboundBuffer.capacity);
                     mark = session->outboundBuffer.position;
@@ -2167,6 +2177,7 @@ static void handle_pairing_data(
                                 "Content-Length: %lu\r\n\r\n",
                                 (unsigned long) tlv8_length);
                         HAPAssert(!err);
+                        HAPIPByteBufferEnsureHeadroom(&session->outboundBuffer, tlv8_length);
                         if (tlv8_length <= session->outboundBuffer.limit - session->outboundBuffer.position) {
                             HAPRawBufferCopyBytes(
                                     &session->outboundBuffer.data[session->outboundBuffer.position],
@@ -2482,6 +2493,7 @@ SendResponse : {
         write_msg(&session->outboundBuffer, kHAPIPAccessoryServerResponse_InternalServerError);
         return;
     }
+    HAPIPByteBufferEnsureHeadroom(&session->outboundBuffer, numResponseBytes);
     if (numResponseBytes > session->outboundBuffer.limit - session->outboundBuffer.position) {
         HAPAssert(err == kHAPError_OutOfResources);
         session->outboundBuffer.position = mark;
@@ -2898,12 +2910,12 @@ static void handle_http(HAPIPSessionDescriptor* session) {
         HAPIPByteBufferShiftLeft(b, requestLen);
         if (session->accessorySerializationIsInProgress) {
             // Session is already prepared for writing
-            HAPAssert(session->outboundBuffer.data);
+            HAPAssert(session->outboundBuffer.data || session->outboundBuffer.isDynamic);
             HAPAssert(session->outboundBuffer.position <= session->outboundBuffer.limit);
             HAPAssert(session->outboundBuffer.limit <= session->outboundBuffer.capacity);
             HAPAssert(session->state == kHAPIPSessionState_Writing);
         } else {
-            HAPAssert(session->outboundBuffer.data);
+            HAPAssert(session->outboundBuffer.data || session->outboundBuffer.isDynamic);
             HAPAssert(session->outboundBuffer.position <= session->outboundBuffer.limit);
             HAPAssert(session->outboundBuffer.limit <= session->outboundBuffer.capacity);
             HAPIPByteBufferFlip(&session->outboundBuffer);
@@ -2917,6 +2929,7 @@ static void handle_http(HAPIPSessionDescriptor* session) {
             if (session->securitySession.type == kHAPIPSecuritySessionType_HAP && session->securitySession.isSecured) {
                 encrypted_length = HAPIPSecurityProtocolGetNumEncryptedBytes(
                         session->outboundBuffer.limit - session->outboundBuffer.position);
+                HAPIPByteBufferEnsureCapacity(&session->outboundBuffer, encrypted_length);
                 if (encrypted_length > session->outboundBuffer.capacity - session->outboundBuffer.position) {
                     HAPLog(&logObject, "Out of resources (outbound buffer too small).");
                     session->outboundBuffer.limit = session->outboundBuffer.capacity;
@@ -2924,6 +2937,7 @@ static void handle_http(HAPIPSessionDescriptor* session) {
                     HAPIPByteBufferFlip(&session->outboundBuffer);
                     encrypted_length = HAPIPSecurityProtocolGetNumEncryptedBytes(
                             session->outboundBuffer.limit - session->outboundBuffer.position);
+                    HAPIPByteBufferEnsureCapacity(&session->outboundBuffer, encrypted_length);
                     HAPAssert(encrypted_length <= session->outboundBuffer.capacity - session->outboundBuffer.position);
                 }
                 HAPIPSecurityProtocolEncryptData(
@@ -3357,7 +3371,7 @@ static void write_event_notifications(HAPIPSessionDescriptor* session) {
             size_t content_length = HAPIPAccessoryProtocolGetNumEventNotificationBytes(
                     HAPNonnull(session->server), readContexts, numReadContexts);
 
-            HAPAssert(session->outboundBuffer.data);
+            HAPAssert(session->outboundBuffer.data || session->outboundBuffer.isDynamic);
             HAPAssert(session->outboundBuffer.position <= session->outboundBuffer.limit);
             HAPAssert(session->outboundBuffer.limit <= session->outboundBuffer.capacity);
             size_t mark = session->outboundBuffer.position;
@@ -3372,6 +3386,7 @@ static void write_event_notifications(HAPIPSessionDescriptor* session) {
                 HAPLog(&logObject, "Invalid configuration (outbound buffer too small).");
                 HAPFatalError();
             }
+            HAPIPByteBufferEnsureHeadroom(&session->outboundBuffer, content_length);
             if (content_length <= session->outboundBuffer.limit - session->outboundBuffer.position) {
                 mark = session->outboundBuffer.position;
                 err = HAPIPAccessoryProtocolGetEventNotificationBytes(
@@ -3387,6 +3402,7 @@ static void write_event_notifications(HAPIPSessionDescriptor* session) {
                 if (session->securitySession.isSecured) {
                     size_t encrypted_length = HAPIPSecurityProtocolGetNumEncryptedBytes(
                             session->outboundBuffer.limit - session->outboundBuffer.position);
+                    HAPIPByteBufferEnsureCapacity(&session->outboundBuffer, encrypted_length);
                     if (encrypted_length <= session->outboundBuffer.capacity - session->outboundBuffer.position) {
                         HAPIPSecurityProtocolEncryptData(
                                 HAPNonnull(session->server), &session->securitySession._.hap, &session->outboundBuffer);
@@ -3506,11 +3522,12 @@ static void WriteOutboundData(HAPIPSessionDescriptor* session) {
     HAPAssert(b->limit <= b->capacity);
 
     size_t numBytes;
+    size_t maxBytes = HAPMin(b->limit - b->position, kHAPIPAccessoryServerMaxIOSize);
     err = HAPPlatformTCPStreamWrite(
             HAPNonnull(server->platform.ip.tcpStreamManager),
             session->tcpStream,
             /* bytes: */ &b->data[b->position],
-            /* maxBytes: */ b->limit - b->position,
+            maxBytes,
             &numBytes);
 
     if (err == kHAPError_Unknown) {
@@ -3574,7 +3591,7 @@ static void ReadInboundData(HAPIPSessionDescriptor* session) {
 
     HAPIPByteBuffer* b;
     b = &session->inboundBuffer;
-    HAPAssert(b->data);
+    HAPAssert(b->data || b->isDynamic);
     HAPAssert(b->position <= b->limit);
     HAPAssert(b->limit <= b->capacity);
 
@@ -3720,9 +3737,10 @@ static void HandlePendingTCPStream(HAPPlatformTCPStreamManagerRef tcpStreamManag
     t->inboundBuffer.isDynamic = true;
     t->inboundBufferMark = 0;
     t->outboundBuffer.position = 0;
-    t->outboundBuffer.limit = ipSession->outboundBuffer.numBytes;
-    t->outboundBuffer.capacity = ipSession->outboundBuffer.numBytes;
-    t->outboundBuffer.data = ipSession->outboundBuffer.bytes;
+    t->outboundBuffer.limit = 0;
+    t->outboundBuffer.capacity = 0;
+    t->outboundBuffer.data = NULL;
+    t->outboundBuffer.isDynamic = true;
     t->eventNotifications = NULL;
     t->numEventNotifications = 0;
     t->numEventNotificationFlags = 0;
@@ -3756,30 +3774,6 @@ static void engine_init(HAPAccessoryServerRef* server_) {
             &logObject,
             "Storage configuration: sessions = %lu",
             (unsigned long) (server->ip.storage->numSessions * sizeof(HAPIPSession)));
-    for (size_t i = 0; i < server->ip.storage->numSessions;) {
-        size_t j;
-        for (j = i + 1; j < server->ip.storage->numSessions; j++) {
-            if (server->ip.storage->sessions[j].outboundBuffer.numBytes !=
-                server->ip.storage->sessions[i].outboundBuffer.numBytes) {
-                break;
-            }
-        }
-        if (i == j - 1) {
-            HAPLogDebug(
-                    &logObject,
-                    "Storage configuration: sessions[%lu].outboundBuffer.numBytes = %lu",
-                    (unsigned long) i,
-                    (unsigned long) server->ip.storage->sessions[i].outboundBuffer.numBytes);
-        } else {
-            HAPLogDebug(
-                    &logObject,
-                    "Storage configuration: sessions[%lu...%lu].outboundBuffer.numBytes = %lu",
-                    (unsigned long) i,
-                    (unsigned long) j - 1,
-                    (unsigned long) server->ip.storage->sessions[i].outboundBuffer.numBytes);
-        }
-        i = j;
-    }
     HAPLogDebug(
             &logObject,
             "Storage configuration: scratchBuffer.numBytes = %lu",
@@ -4044,15 +4038,10 @@ static void Create(HAPAccessoryServerRef* server_, const HAPAccessoryServerOptio
     HAPPrecondition(storage->scratchBuffer.bytes);
     HAPPrecondition(storage->sessions);
     HAPPrecondition(storage->numSessions);
-    for (size_t i = 0; i < storage->numSessions; i++) {
-        HAPIPSession* session = &storage->sessions[i];
-        HAPPrecondition(session->outboundBuffer.bytes);
-    }
     HAPRawBufferZero(storage->scratchBuffer.bytes, storage->scratchBuffer.numBytes);
     for (size_t i = 0; i < storage->numSessions; i++) {
         HAPIPSession* ipSession = &storage->sessions[i];
         HAPRawBufferZero(&ipSession->descriptor, sizeof ipSession->descriptor);
-        HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
     }
     server->ip.storage = options->ip.accessoryServerStorage;
 
@@ -4069,7 +4058,6 @@ static void PrepareStart(HAPAccessoryServerRef* server_) {
     for (size_t i = 0; i < storage->numSessions; i++) {
         HAPIPSession* ipSession = &storage->sessions[i];
         HAPRawBufferZero(&ipSession->descriptor, sizeof ipSession->descriptor);
-        HAPRawBufferZero(ipSession->outboundBuffer.bytes, ipSession->outboundBuffer.numBytes);
     }
 }
 

@@ -72,7 +72,8 @@ HAP_RESULT_USE_CHECK
 HAPError HAPIPByteBufferAppendStringWithFormat(HAPIPByteBuffer* byteBuffer, const char* format, ...);
 
 /**
- * Ensures that the buffer has at least numBytes headroom by reallocating if necessary.
+ * Ensures that the buffer has at least numBytes of headroom (capacity - position)
+ * by reallocating if necessary.
  *
  * @param      byteBuffer           Byte buffer.
  * @param      numBytes             Desired headroom, in bytes.
@@ -80,8 +81,18 @@ HAPError HAPIPByteBufferAppendStringWithFormat(HAPIPByteBuffer* byteBuffer, cons
  * @return kHAPError_None           If successful.
  * @return kHAPError_OutOfResources If memory could not be allocated.
  */
-HAP_RESULT_USE_CHECK
 HAPError HAPIPByteBufferEnsureHeadroom(HAPIPByteBuffer* byteBuffer, size_t numBytes);
+
+/**
+ * Ensures that the buffer has at least numBytes capacity by reallocating if necessary.
+ *
+ * @param      byteBuffer           Byte buffer.
+ * @param      numBytes             Desired capacity, in bytes.
+ *
+ * @return kHAPError_None           If successful.
+ * @return kHAPError_OutOfResources If memory could not be allocated.
+ */
+HAPError HAPIPByteBufferEnsureCapacity(HAPIPByteBuffer* byteBuffer, size_t numBytes);
 
 /**
  * Trims the buffer's capacity to the current limit.

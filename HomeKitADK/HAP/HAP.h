@@ -3613,24 +3613,6 @@ typedef struct {
      * IP session descriptor.
      */
     HAPIPSessionDescriptorRef descriptor;
-
-    /**
-     * Buffer to store pending data to be sent.
-     */
-    struct {
-        /**
-         * Outbound buffer. Memory must be allocated and must remain valid while the accessory server is initialized.
-         *
-         * - It is recommended to allocate at least kHAPIPSession_DefaultOutboundBufferSize bytes,
-         *   but the optimal size may vary depending on the accessory's attribute database.
-         */
-        void* bytes;
-
-        /**
-         * Size of outbound buffer.
-         */
-        size_t numBytes;
-    } outboundBuffer;
 } HAPIPSession;
 
 /**
