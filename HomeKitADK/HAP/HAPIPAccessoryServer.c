@@ -2862,7 +2862,7 @@ static void handle_http_request(HAPIPSessionDescriptor* session) {
             HAPLogBuffer(
                     &logObject,
                     session->httpURI.bytes,
-                    HAPStringGetNumBytes(HAPNonnull(session->httpURI.bytes)),
+                    session->httpURI.numBytes,
                     "Unknown endpoint accessed.");
             if (session->securitySession.isSecured || kHAPIPAccessoryServer_SessionSecurityDisabled) {
                 if (!HAPSessionIsTransient(&session->securitySession._.hap)) {
