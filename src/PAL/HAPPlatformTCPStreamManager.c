@@ -295,7 +295,9 @@ void HAPPlatformTCPStreamClose(HAPPlatformTCPStreamManagerRef tm, HAPPlatformTCP
     HAPPlatformTCPStream* ts = (HAPPlatformTCPStream*) tcpStream;
     tm->numActiveTCPStreams--;
     tm->lastCloseTS = mgos_uptime_micros();
-    tm->listener->ev_timer_time = mg_time() + 0.06;
+    if (tm->listener != NULL) {
+        tm->listener->ev_timer_time = mg_time() + 0.06;
+    }
     LOG(LL_INFO,
         ("HAPPlatformTCPStreamClose ts %p nc %p %u/%u/%u",
          ts,
