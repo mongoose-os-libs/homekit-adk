@@ -28,7 +28,7 @@ HAPPlatformAccessorySetupCapabilities
     HAPPrecondition(accessorySetup);
 
     // Deprecated. Return false and use HAPPlatformAccessorySetupDisplay / HAPPlatformAccessorySetupNFC instead.
-    return (HAPPlatformAccessorySetupCapabilities){ .supportsDisplay = false, .supportsProgrammableNFC = false };
+    return (HAPPlatformAccessorySetupCapabilities) { .supportsDisplay = false, .supportsProgrammableNFC = false };
 }
 
 void HAPPlatformAccessorySetupUpdateSetupPayload(

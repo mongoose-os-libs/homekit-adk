@@ -2859,11 +2859,7 @@ static void handle_http_request(HAPIPSessionDescriptor* session) {
                 }
             }
         } else {
-            HAPLogBuffer(
-                    &logObject,
-                    session->httpURI.bytes,
-                    session->httpURI.numBytes,
-                    "Unknown endpoint accessed.");
+            HAPLogBuffer(&logObject, session->httpURI.bytes, session->httpURI.numBytes, "Unknown endpoint accessed.");
             if (session->securitySession.isSecured || kHAPIPAccessoryServer_SessionSecurityDisabled) {
                 if (!HAPSessionIsTransient(&session->securitySession._.hap)) {
                     write_msg(&session->outboundBuffer, kHAPIPAccessoryServerResponse_ResourceNotFound);
