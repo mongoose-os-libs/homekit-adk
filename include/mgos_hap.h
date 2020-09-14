@@ -138,6 +138,13 @@ extern const HAPService mgos_hap_protocol_information_service;
  */
 extern const HAPService mgos_hap_pairing_service;
 
+/*
+ * Service Label Service.
+ * label_namespace is either 0 (dots) or 1 (numerals).
+ * Uses IDs 0x1030 - 0x1031.
+ */
+const HAPService* _Nonnull mgos_hap_service_label_service(uint8_t label_namespace);
+
 #ifdef __cplusplus
 }
 #endif

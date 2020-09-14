@@ -368,3 +368,64 @@ const HAPService mgos_hap_pairing_service = {
                     NULL,
             },
 };
+
+/* Service Label service. */
+
+static uint8_t s_service_label_namespace = 0;
+
+HAPError mgos_hap_handle_service_label_namespace_read(
+        HAPAccessoryServerRef* server,
+        const HAPUInt8CharacteristicReadRequest* request,
+        uint8_t* value,
+        void* _Nullable context) {
+    *value = s_service_label_namespace;
+    (void) server;
+    (void) request;
+    (void) context;
+    return kHAPError_None;
+}
+
+static const HAPUInt8Characteristic serviceLabelNamespaceCharacteristic = {
+    .format = kHAPCharacteristicFormat_UInt8,
+    .iid = 0x1031,
+    .characteristicType = &kHAPCharacteristicType_ServiceLabelNamespace,
+    .debugDescription = kHAPCharacteristicDebugDescription_ServiceLabelNamespace,
+    .manufacturerDescription = NULL,
+    .properties = { .readable = true,
+                    .writable = false,
+                    .supportsEventNotification = false,
+                    .hidden = false,
+                    .requiresTimedWrite = false,
+                    .supportsAuthorizationData = false,
+                    .ip = { .controlPoint = false, .supportsWriteResponse = false },
+                    .ble = { .supportsDisconnectedNotification = false,
+                             .supportsBroadcastNotification = false,
+                             .readableWithoutSecurity = false,
+                             .writableWithoutSecurity = false } },
+    .units = kHAPCharacteristicUnits_None,
+    .constraints = { .minimumValue = 0,
+                     .maximumValue = 1,
+                     .stepValue = 1,
+                     .validValues = NULL,
+                     .validValuesRanges = NULL },
+    .callbacks = { .handleRead = mgos_hap_handle_service_label_namespace_read, .handleWrite = NULL },
+};
+
+const HAPService mgos_hap_service_label_service_def = {
+    .iid = 0x1030,
+    .serviceType = &kHAPServiceType_ServiceLabel,
+    .debugDescription = kHAPServiceDebugDescription_ServiceLabel,
+    .name = NULL,
+    .properties = { .primaryService = false, .hidden = false, .ble = { .supportsConfiguration = false } },
+    .linkedServices = NULL,
+    .characteristics =
+            (const HAPCharacteristic* const[]) {
+                    &serviceLabelNamespaceCharacteristic,
+                    NULL,
+            },
+};
+
+const HAPService* _Nonnull mgos_hap_service_label_service(uint8_t label_namespace) {
+    s_service_label_namespace = label_namespace;
+    return &mgos_hap_service_label_service_def;
+}
