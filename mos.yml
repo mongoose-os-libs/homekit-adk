@@ -1,7 +1,7 @@
 author: 'Deomid "rojer" Ryabkov'
 description: Port of HomeKitADK to Mongoose OS
 type: lib
-version: 0.5.0
+version: 1.0.1
 
 # Upstream commit: https://github.com/apple/HomeKitADK/commit/24f76f891c644e8124896ec48fe2b90e358fb73e
 
@@ -52,6 +52,7 @@ conds:
 
 
 cdefs:
+  HAP_VERSION: '\"1.0.1\"'
   HAP_IDENTIFICATION: '\"https://github.com/mongoose-os-libs/homekit-adk\"'
   # These save quite a bit of space.
   # App can override back to 0 if needed.
