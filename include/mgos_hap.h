@@ -109,10 +109,14 @@ bool mgos_hap_setup_info_from_string(
 bool mgos_hap_config_valid(void);
 
 #ifdef MGOS_HAVE_RPC_COMMON
+// Simple case: only one primary accessory, constant.
 void mgos_hap_add_rpc_service(
         HAPAccessoryServerRef* _Nonnull server,
-        HAPAccessory* _Nonnull accessory,
-        HAPPlatformKeyValueStoreRef _Nonnull kvs);
+        const HAPAccessory* _Nonnull accessory);
+// More complicated variant.
+void mgos_hap_add_rpc_service_cb(
+        HAPAccessoryServerRef* _Nonnull server,
+        void(server_start_cb)(HAPAccessoryServerRef* _Nonnull server));
 #endif
 #endif // MGOS_HAP_SIMPLE_CONFIG
 

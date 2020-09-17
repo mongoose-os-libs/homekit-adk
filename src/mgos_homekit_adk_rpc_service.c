@@ -22,12 +22,13 @@
 
 #include "mgos_rpc.h"
 
+#include "HAPAccessoryServer+Internal.h"
 #include "HAPAccessorySetup.h"
 #include "HAPCrypto.h"
 
-HAPAccessoryServerRef* s_server;
-HAPAccessory* s_accessory;
-HAPPlatformKeyValueStoreRef s_kvs;
+static const HAPAccessory* s_acc = NULL;
+static HAPAccessoryServerRef* s_server = NULL;
+static void (*s_start_cb)(HAPAccessoryServerRef* _Nonnull server) = NULL;
 
 static bool set_salt_and_verfier(const char* salt, const char* verifier, int config_level) {
 
@@ -112,7 +113,7 @@ static void mgos_hap_setup_handler(
     mg_rpc_send_responsef(ri, NULL);
 
     if (start_server && HAPAccessoryServerGetState(s_server) == kHAPAccessoryServerState_Idle) {
-        HAPAccessoryServerStart(s_server, s_accessory);
+        s_start_cb(s_server);
     }
 
 out:
@@ -147,7 +148,8 @@ static void stop_and_reset(void* arg) {
             HAPError err = kHAPError_None;
             if (ctx->reset_server) {
                 LOG(LL_INFO, ("Resetting server"));
-                err = HAPRestoreFactorySettings(s_kvs);
+                HAPAccessoryServer* server = (HAPAccessoryServer*) s_server;
+                err = HAPRestoreFactorySettings(server->platform.keyValueStore);
                 if (err != kHAPError_None) {
                     res = false;
                 }
@@ -161,7 +163,7 @@ static void stop_and_reset(void* arg) {
             }
             if (res && ctx->stopped_server && mgos_hap_config_valid()) {
                 // We stopped server for reset, restart it.
-                HAPAccessoryServerStart(s_server, s_accessory);
+                s_start_cb(s_server);
             }
             if (res) {
                 mg_rpc_send_responsef(ctx->ri, NULL);
@@ -196,10 +198,20 @@ static void mgos_hap_reset_handler(
     (void) fi;
 }
 
-void mgos_hap_add_rpc_service(HAPAccessoryServerRef* server, HAPAccessory* accessory, HAPPlatformKeyValueStoreRef kvs) {
+static void simple_start_cb(HAPAccessoryServerRef* _Nonnull server) {
+    HAPAccessoryServerStart(server, s_acc);
+}
+
+void mgos_hap_add_rpc_service(HAPAccessoryServerRef* server, const HAPAccessory* _Nonnull acc) {
+    s_acc = acc;
+    mgos_hap_add_rpc_service_cb(server, simple_start_cb);
+}
+
+void mgos_hap_add_rpc_service_cb(
+        HAPAccessoryServerRef* _Nonnull server,
+        void(server_start_cb)(HAPAccessoryServerRef* _Nonnull server)) {
     s_server = server;
-    s_accessory = accessory;
-    s_kvs = kvs;
+    s_start_cb = server_start_cb;
     mg_rpc_add_handler(
             mgos_rpc_get_global(),
             "HAP.Setup",
