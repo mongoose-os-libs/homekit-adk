@@ -27,7 +27,6 @@
 #define HAP_F_READ_PENDING MG_F_USER_3
 #define HAP_F_WRITE_PENDING MG_F_USER_4
 
-#define HAP_MAX_PENDING_CONNECTIONS 5
 #define HAP_EVICT_MIN_IDLE_SECONDS 3
 // Stagger inbound connections, 1 every 2 seconds.
 #define HAP_ACCEPT_MIN_INTERVAL_SECONDS 3
@@ -126,7 +125,7 @@ static void HAPMGListenerHandler(struct mg_connection* nc, int ev, void* ev_data
                  (unsigned) tm->numActiveTCPStreams,
                  (unsigned) tm->maxNumTCPStreams));
             nc->recv_mbuf_limit = kHAPIPAccessoryServerMaxIOSize;
-            if (tm->numPendingTCPStreams >= HAP_MAX_PENDING_CONNECTIONS) {
+            if (tm->numPendingTCPStreams >= tm->maxNumTCPStreams - tm->numActiveTCPStreams) {
                 LOG(LL_ERROR, ("%p %s Too many pending connections, dropping", nc, addr));
                 mg_send_response_line(nc, 503, "Content-Type: application/hap+json\r\nContent-Length: 17\r\n");
                 mg_printf(nc, "{\"status\":-70407}");
