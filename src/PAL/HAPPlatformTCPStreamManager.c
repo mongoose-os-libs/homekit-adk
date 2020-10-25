@@ -40,7 +40,8 @@ bool HAPPlatformTCPStreamManagerIsListenerOpen(HAPPlatformTCPStreamManagerRef tc
 }
 
 static struct mg_connection* HAPMGListenerGetNextPendingConnection(HAPPlatformTCPStreamManagerRef tm) {
-    if (tm->listener == NULL) return NULL;  // Stopping.
+    if (tm->listener == NULL)
+        return NULL; // Stopping.
     struct mg_mgr* mgr = tm->listener->mgr;
     struct mg_connection* result = NULL;
     for (struct mg_connection* nc = mg_next(mgr, NULL); nc != NULL; nc = mg_next(mgr, nc)) {

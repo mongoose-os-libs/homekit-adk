@@ -18,73 +18,7 @@
 #include "mgos_hap.h"
 
 #include "mgos.h"
-
-void HAPPlatformAccessorySetupLoadSetupInfo(HAPPlatformAccessorySetupRef accessorySetup, HAPSetupInfo* setupInfo) {
-    struct mgos_hap_load_setup_info_arg arg = {
-        .accessorySetup = accessorySetup,
-        .setupInfo = setupInfo,
-    };
-    mgos_event_trigger(MGOS_HAP_EV_LOAD_SETUP_INFO, &arg);
-}
-
-void HAPPlatformAccessorySetupLoadSetupCode(HAPPlatformAccessorySetupRef accessorySetup, HAPSetupCode* setupCode) {
-    struct mgos_hap_load_setup_code_arg arg = {
-        .accessorySetup = accessorySetup,
-        .setupCode = setupCode,
-    };
-    mgos_event_trigger(MGOS_HAP_EV_LOAD_SETUP_CODE, &arg);
-}
-
-void HAPPlatformAccessorySetupLoadSetupID(
-        HAPPlatformAccessorySetupRef accessorySetup,
-        bool* valid,
-        HAPSetupID* setupID) {
-    struct mgos_hap_load_setup_id_arg arg = {
-        .accessorySetup = accessorySetup,
-        .valid = valid,
-        .setupID = setupID,
-    };
-    mgos_event_trigger(MGOS_HAP_EV_LOAD_SETUP_ID, &arg);
-}
-
-void HAPPlatformAccessorySetupDisplayUpdateSetupPayload(
-        HAPPlatformAccessorySetupDisplayRef setupDisplay,
-        const HAPSetupPayload* _Nullable setupPayload,
-        const HAPSetupCode* _Nullable setupCode) {
-
-    struct mgos_hap_display_update_setup_payload_arg arg = {
-        .setupDisplay = setupDisplay,
-        .setupPayload = setupPayload,
-        .setupCode = setupCode,
-    };
-    mgos_event_trigger(MGOS_HAP_EV_DISPLAY_UPDATE_SETUP_PAYLOAD, &arg);
-}
-
-void HAPPlatformAccessorySetupDisplayHandleStartPairing(HAPPlatformAccessorySetupDisplayRef setupDisplay) {
-    struct mgos_hap_display_start_pairing_arg arg = {
-        .setupDisplay = setupDisplay,
-    };
-    mgos_event_trigger(MGOS_HAP_EV_DISPLAY_START_PAIRING, &arg);
-}
-
-void HAPPlatformAccessorySetupDisplayHandleStopPairing(HAPPlatformAccessorySetupDisplayRef setupDisplay) {
-    struct mgos_hap_display_stop_pairing_arg arg = {
-        .setupDisplay = setupDisplay,
-    };
-    mgos_event_trigger(MGOS_HAP_EV_DISPLAY_STOP_PAIRING, &arg);
-}
-
-void HAPPlatformAccessorySetupNFCUpdateSetupPayload(
-        HAPPlatformAccessorySetupNFCRef setupNFC,
-        const HAPSetupPayload* setupPayload,
-        bool isPairable) {
-    struct mgos_hap_nfc_update_setup_payload_arg arg = {
-        .setupNFC = setupNFC,
-        .setupPayload = setupPayload,
-        .isPairable = isPairable,
-    };
-    mgos_event_trigger(MGOS_HAP_EV_NFC_UPDATE_SETUP_PAYLOAD, &arg);
-}
+#include "HAPAccessorySetup.h"
 
 bool mgos_hap_setup_info_from_string(HAPSetupInfo* setupInfo, const char* salt, const char* verifier) {
     int salt_len = strlen(salt != NULL ? salt : "");
@@ -112,8 +46,40 @@ bool mgos_hap_setup_info_from_string(HAPSetupInfo* setupInfo, const char* salt, 
     return (d == (int) sizeof(setupInfo->verifier));
 }
 
+bool mgos_hap_setup_id_from_string(HAPSetupID* setupID, const char* id) {
+
+    int id_len = strlen(id != NULL ? id : "");
+
+    // when no setup id was provided, generate an id
+    if (id_len == 0 || id_len > sizeof(HAPSetupID)) {
+
+        HAPAccessorySetupGenerateRandomSetupID(setupID);
+
+        // save it
+        mgos_sys_config_set_hap_setupid(setupID->stringValue);
+
+        char* err = NULL;
+        save_cfg(&mgos_sys_config, &err);
+        printf("Saving configuration: %s\n", err ? err : "no error");
+        free(err);
+
+        // generated id is always valid.
+        return true;
+    }
+
+    // check if provided id is valid
+    if (HAPAccessorySetupIsValidSetupID(id)) {
+        // copy valid id string to stringValue
+        strncpy(setupID->stringValue, id, sizeof(HAPSetupID));
+        return true;
+    } // ending here ... if a non valid setup id was provided don't overrule it. chosen faith.
+
+    // no valid setup id was generated or read
+    return false;
+}
+
 #ifdef MGOS_HAP_SIMPLE_CONFIG
-static void setup_info_cb(int ev, void* ev_data, void* userdata) {
+static void load_setup_info_cb(int ev, void* ev_data, void* userdata) {
     struct mgos_hap_load_setup_info_arg* arg = (struct mgos_hap_load_setup_info_arg*) ev_data;
     if (!mgos_hap_setup_info_from_string(
                 arg->setupInfo, mgos_sys_config_get_hap_salt(), mgos_sys_config_get_hap_verifier())) {
@@ -123,16 +89,37 @@ static void setup_info_cb(int ev, void* ev_data, void* userdata) {
     (void) userdata;
 }
 
+static void load_setup_id_cb(int ev, void* ev_data, void* userdata) {
+
+    LOG(LL_DEBUG, ("%s: Loading setup identifier...", __func__));
+
+    struct mgos_hap_load_setup_id_arg* arg = (struct mgos_hap_load_setup_id_arg*) ev_data;
+
+    if (!mgos_hap_setup_id_from_string(arg->setupID, mgos_sys_config_get_hap_setupid())) {
+        LOG(LL_ERROR, ("Failed to load or generate HAP accessory setup identifier!"));
+        *arg->valid = false;
+    } else {
+        *arg->valid = true;
+        LOG(LL_DEBUG, ("Success loading setup id. (Identifier is \"%s\")", arg->setupID->stringValue));
+    }
+
+    (void) ev;
+    (void) userdata;
+}
+
 bool mgos_hap_config_valid(void) {
     HAPSetupInfo setupInfo;
+    HAPSetupID setupID;
     return mgos_hap_setup_info_from_string(
-            &setupInfo, mgos_sys_config_get_hap_salt(), mgos_sys_config_get_hap_verifier());
+                   &setupInfo, mgos_sys_config_get_hap_salt(), mgos_sys_config_get_hap_verifier()) &&
+           mgos_hap_setup_id_from_string(&setupID, mgos_sys_config_get_hap_setupid());
 }
 #endif
 
 bool mgos_homekit_adk_init(void) {
 #ifdef MGOS_HAP_SIMPLE_CONFIG
-    mgos_event_add_handler(MGOS_HAP_EV_LOAD_SETUP_INFO, setup_info_cb, NULL);
+    mgos_event_add_handler(MGOS_HAP_EV_LOAD_SETUP_INFO, load_setup_info_cb, NULL);
+    mgos_event_add_handler(MGOS_HAP_EV_LOAD_SETUP_ID, load_setup_id_cb, NULL);
 #endif
     mgos_event_register_base(MGOS_HAP_EV_BASE, "HAP");
     return true;
