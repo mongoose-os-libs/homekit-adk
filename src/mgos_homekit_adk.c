@@ -48,6 +48,7 @@ bool mgos_hap_setup_info_from_string(HAPSetupInfo* setupInfo, const char* salt, 
 
 bool mgos_hap_setup_id_from_string(HAPSetupID* setupID, const char* id) {
 
+    int config_level = 2;
     int id_len = strlen(id != NULL ? id : "");
 
     // when no setup id was provided, generate an id
@@ -55,13 +56,29 @@ bool mgos_hap_setup_id_from_string(HAPSetupID* setupID, const char* id) {
 
         HAPAccessorySetupGenerateRandomSetupID(setupID);
 
-        // save it
-        mgos_sys_config_set_hap_setupid(setupID->stringValue);
+        struct mgos_config* cfg = (struct mgos_config*) calloc(1, sizeof(*cfg));
 
-        char* err = NULL;
-        save_cfg(&mgos_sys_config, &err);
-        printf("Saving configuration: %s\n", err ? err : "no error");
-        free(err);
+        // load configuration for requested level
+        if (!mgos_sys_config_load_level(cfg, (enum mgos_config_level) config_level)) {
+            LOG(LL_ERROR, ("%s: failed to load config.", __func__));
+            goto out;
+        }
+
+        mgos_sys_config_set_hap_setupid(setupID->stringValue);
+        mgos_conf_set_str(&cfg->hap.setupid, setupID->stringValue);
+
+        // save configuration
+        char* msg = NULL;
+        if (!mgos_sys_config_save_level(cfg, (enum mgos_config_level) config_level, false, &msg)) {
+            LOG(LL_ERROR, ("%s: Error saving config: %s", __func__, (msg ? msg : "")));
+            free(msg);
+        }
+
+    out:
+        if (cfg != NULL) {
+            mgos_conf_free(mgos_config_schema(), cfg);
+            free(cfg);
+        }
 
         // generated id is always valid.
         return true;
@@ -72,7 +89,7 @@ bool mgos_hap_setup_id_from_string(HAPSetupID* setupID, const char* id) {
         // copy valid id string to stringValue
         strncpy(setupID->stringValue, id, sizeof(HAPSetupID));
         return true;
-    } // ending here ... if a non valid setup id was provided don't overrule it. chosen faith.
+    } // ending here ... if a non valid setup id was provided don't overrule it. Chosen fate.
 
     // no valid setup id was generated or read
     return false;
@@ -91,7 +108,7 @@ static void load_setup_info_cb(int ev, void* ev_data, void* userdata) {
 
 static void load_setup_id_cb(int ev, void* ev_data, void* userdata) {
 
-    LOG(LL_DEBUG, ("%s: Loading setup identifier...", __func__));
+    LOG(LL_INFO, ("%s: Loading setup identifier...", __func__));
 
     struct mgos_hap_load_setup_id_arg* arg = (struct mgos_hap_load_setup_id_arg*) ev_data;
 
@@ -100,7 +117,7 @@ static void load_setup_id_cb(int ev, void* ev_data, void* userdata) {
         *arg->valid = false;
     } else {
         *arg->valid = true;
-        LOG(LL_DEBUG, ("Success loading setup id. (Identifier is \"%s\")", arg->setupID->stringValue));
+        LOG(LL_INFO, ("Success loading setup id. (Identifier is \"%s\")", arg->setupID->stringValue));
     }
 
     (void) ev;

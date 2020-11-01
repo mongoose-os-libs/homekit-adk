@@ -105,14 +105,17 @@ bool mgos_hap_setup_info_from_string(
         const char* _Nonnull salt,
         const char* _Nonnull verifier);
 
+/*
+ * Load setup identifier from string.
+ */
+bool mgos_hap_setup_id_from_string(HAPSetupID* _Nonnull setupID, const char* setup_id);
+
 #ifdef MGOS_HAP_SIMPLE_CONFIG
 bool mgos_hap_config_valid(void);
 
 #ifdef MGOS_HAVE_RPC_COMMON
 // Simple case: only one primary accessory, constant.
-void mgos_hap_add_rpc_service(
-        HAPAccessoryServerRef* _Nonnull server,
-        const HAPAccessory* _Nonnull accessory);
+void mgos_hap_add_rpc_service(HAPAccessoryServerRef* _Nonnull server, const HAPAccessory* _Nonnull accessory);
 // More complicated variant.
 void mgos_hap_add_rpc_service_cb(
         HAPAccessoryServerRef* _Nonnull server,
