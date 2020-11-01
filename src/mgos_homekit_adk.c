@@ -108,16 +108,16 @@ static void load_setup_info_cb(int ev, void* ev_data, void* userdata) {
 
 static void load_setup_id_cb(int ev, void* ev_data, void* userdata) {
 
-    LOG(LL_INFO, ("%s: Loading setup identifier...", __func__));
+    LOG(LL_DEBUG, ("%s: Loading setup identifier...", __func__));
 
     struct mgos_hap_load_setup_id_arg* arg = (struct mgos_hap_load_setup_id_arg*) ev_data;
 
     if (!mgos_hap_setup_id_from_string(arg->setupID, mgos_sys_config_get_hap_setupid())) {
-        LOG(LL_ERROR, ("Failed to load or generate HAP accessory setup identifier!"));
+        LOG(LL_DEBUG, ("Failed to load or generate HAP accessory setup identifier!"));
         *arg->valid = false;
     } else {
         *arg->valid = true;
-        LOG(LL_INFO, ("Success loading setup id. (Identifier is \"%s\")", arg->setupID->stringValue));
+        LOG(LL_DEBUG, ("Success loading setup id. (Identifier is \"%s\")", arg->setupID->stringValue));
     }
 
     (void) ev;
