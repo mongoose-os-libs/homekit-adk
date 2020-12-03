@@ -488,7 +488,8 @@ static void HAPAccessoryServerPrepareStart(
     }
 
     // Firmware version check.
-    {
+    // MongooseOS: disabled, in practice controllers don't care and it's just a nuisance.
+    if (0) {
         // Read firmware version.
         HAPAssert(primaryAccessory->firmwareVersion);
         uint32_t major;
