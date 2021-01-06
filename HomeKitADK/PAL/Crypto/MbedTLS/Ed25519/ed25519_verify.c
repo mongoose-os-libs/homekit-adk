@@ -164,11 +164,14 @@ int ed25519_VerifySignature(
         const unsigned char* msg,
         size_t msg_size) /* IN: message to sign */
 {
-    EDP_SIGV_CTX ctx;
+    EDP_SIGV_CTX *ctx = mem_alloc(sizeof(*ctx));
+    if (ctx == NULL) return 0;
 
-    ed25519_Verify_Init(&ctx, publicKey);
+    ed25519_Verify_Init(ctx, publicKey);
 
-    return ed25519_Verify_Check(&ctx, signature, msg, msg_size);
+    int res = ed25519_Verify_Check(ctx, signature, msg, msg_size);
+    mem_free(ctx);
+    return res;
 }
 
 #define QTABLE_SET(d, s) \
