@@ -40,7 +40,8 @@ bool HAPPlatformTCPStreamManagerIsListenerOpen(HAPPlatformTCPStreamManagerRef tc
 }
 
 static struct mg_connection* HAPMGListenerGetNextPendingConnection(HAPPlatformTCPStreamManagerRef tm) {
-    if (tm->listener == NULL) return NULL;  // Stopping.
+    if (tm->listener == NULL)
+        return NULL; // Stopping.
     struct mg_mgr* mgr = tm->listener->mgr;
     struct mg_connection* result = NULL;
     for (struct mg_connection* nc = mg_next(mgr, NULL); nc != NULL; nc = mg_next(mgr, nc)) {
@@ -125,7 +126,8 @@ static void HAPMGListenerHandler(struct mg_connection* nc, int ev, void* ev_data
                  (unsigned) tm->numActiveTCPStreams,
                  (unsigned) tm->maxNumTCPStreams));
             nc->recv_mbuf_limit = kHAPIPAccessoryServerMaxIOSize;
-            if (tm->numPendingTCPStreams >= tm->maxNumTCPStreams - tm->numActiveTCPStreams) {
+            if (tm->numPendingTCPStreams > 0 &&
+                tm->numPendingTCPStreams >= tm->maxNumTCPStreams - tm->numActiveTCPStreams) {
                 LOG(LL_ERROR, ("%p %s Too many pending connections, dropping", nc, addr));
                 mg_send_response_line(nc, 503, "Content-Type: application/hap+json\r\nContent-Length: 17\r\n");
                 mg_printf(nc, "{\"status\":-70407}");
@@ -146,7 +148,7 @@ static void HAPMGListenerHandler(struct mg_connection* nc, int ev, void* ev_data
                 int64_t now = mgos_uptime_micros();
                 // Give session GC a chance to run to release session.
                 if (now - tm->lastCloseTS > 50000 &&
-                    now - tm->lastAcceptTS > HAP_ACCEPT_MIN_INTERVAL_SECONDS * 1000000) {
+                    (tm->lastAcceptTS == 0 || now - tm->lastAcceptTS > HAP_ACCEPT_MIN_INTERVAL_SECONDS * 1000000)) {
                     tm->listenerCallback(tm, tm->listenerCallbackContext);
                 }
             } else {
