@@ -105,6 +105,11 @@ bool mgos_hap_setup_info_from_string(
         const char* _Nonnull salt,
         const char* _Nonnull verifier);
 
+/*
+ * Load setup identifier from string.
+ */
+bool mgos_hap_setup_id_from_string(HAPSetupID* _Nonnull setupID, const char* setup_id);
+
 #ifdef MGOS_HAP_SIMPLE_CONFIG
 bool mgos_hap_config_valid(void);
 

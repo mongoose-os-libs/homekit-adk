@@ -47,6 +47,7 @@ conds:
         - ["hap", "o", {"title": "HAP settings"}]
         - ["hap.salt", "s", "", {"title": "Device verifier salt"}]
         - ["hap.verifier", "s", "", {"title": "Device verifier"}]
+        - ["hap.setupid", "s", "", {"title": "Device setup id (Four characters)"}]
       cdefs:
         MGOS_HAP_SIMPLE_CONFIG: 1
 

@@ -15,12 +15,43 @@
  * limitations under the License.
  */
 
+#include "mgos.h"
+#include "mgos_hap.h"
+
 #include "HAPPlatformAccessorySetup.h"
 #include "HAPPlatformAccessorySetup+Init.h"
 
 void HAPPlatformAccessorySetupCreate(
         HAPPlatformAccessorySetupRef accessorySetup HAP_UNUSED,
         const HAPPlatformAccessorySetupOptions* options HAP_UNUSED) {
+}
+
+void HAPPlatformAccessorySetupLoadSetupInfo(HAPPlatformAccessorySetupRef accessorySetup, HAPSetupInfo* setupInfo) {
+    struct mgos_hap_load_setup_info_arg arg = {
+        .accessorySetup = accessorySetup,
+        .setupInfo = setupInfo,
+    };
+    mgos_event_trigger(MGOS_HAP_EV_LOAD_SETUP_INFO, &arg);
+}
+
+void HAPPlatformAccessorySetupLoadSetupCode(HAPPlatformAccessorySetupRef accessorySetup, HAPSetupCode* setupCode) {
+    struct mgos_hap_load_setup_code_arg arg = {
+        .accessorySetup = accessorySetup,
+        .setupCode = setupCode,
+    };
+    mgos_event_trigger(MGOS_HAP_EV_LOAD_SETUP_CODE, &arg);
+}
+
+void HAPPlatformAccessorySetupLoadSetupID(
+        HAPPlatformAccessorySetupRef accessorySetup,
+        bool* valid,
+        HAPSetupID* setupID) {
+    struct mgos_hap_load_setup_id_arg arg = {
+        .accessorySetup = accessorySetup,
+        .valid = valid,
+        .setupID = setupID,
+    };
+    mgos_event_trigger(MGOS_HAP_EV_LOAD_SETUP_ID, &arg);
 }
 
 HAPPlatformAccessorySetupCapabilities
