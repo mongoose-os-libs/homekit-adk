@@ -192,6 +192,39 @@ namespace hap {
         }
     };
 
+    class FloatCharacteristic : public ScalarCharacteristic<
+                                        float,
+                                        HAPFloatCharacteristic,
+                                        HAPFloatCharacteristicReadRequest,
+                                        HAPFloatCharacteristicWriteRequest> {
+    public:
+        FloatCharacteristic(
+                uint16_t iid,
+                const HAPUUID* type,
+                float min,
+                float max,
+                float step,
+                ReadHandler read_handler,
+                bool supports_notification,
+                WriteHandler write_handler = nullptr,
+                const char* debug_description = nullptr)
+            : ScalarCharacteristic(
+                      kHAPCharacteristicFormat_UInt8,
+                      iid,
+                      type,
+                      read_handler,
+                      supports_notification,
+                      write_handler,
+                      debug_description) {
+            HAPFloatCharacteristic* c = &hap_char_.char_.float_;
+            c->constraints.minimumValue = min;
+            c->constraints.maximumValue = max;
+            c->constraints.stepValue = step;
+        }
+        virtual ~FloatCharacteristic() {
+        }
+    };
+
     class UInt8Characteristic : public ScalarCharacteristic<
                                         uint8_t,
                                         HAPUInt8Characteristic,
@@ -222,6 +255,105 @@ namespace hap {
             c->constraints.stepValue = step;
         }
         virtual ~UInt8Characteristic() {
+        }
+    };
+
+    class UInt16Characteristic : public ScalarCharacteristic<
+                                        uint16_t,
+                                        HAPUInt16Characteristic,
+                                        HAPUInt16CharacteristicReadRequest,
+                                        HAPUInt16CharacteristicWriteRequest> {
+    public:
+        UInt16Characteristic(
+                uint16_t iid,
+                const HAPUUID* type,
+                uint16_t min,
+                uint16_t max,
+                uint16_t step,
+                ReadHandler read_handler,
+                bool supports_notification,
+                WriteHandler write_handler = nullptr,
+                const char* debug_description = nullptr)
+            : ScalarCharacteristic(
+                      kHAPCharacteristicFormat_UInt16,
+                      iid,
+                      type,
+                      read_handler,
+                      supports_notification,
+                      write_handler,
+                      debug_description) {
+            HAPUInt16Characteristic* c = &hap_char_.char_.uint16;
+            c->constraints.minimumValue = min;
+            c->constraints.maximumValue = max;
+            c->constraints.stepValue = step;
+        }
+        virtual ~UInt16Characteristic() {
+        }
+    };
+
+    class UInt32Characteristic : public ScalarCharacteristic<
+                                        uint32_t,
+                                        HAPUInt32Characteristic,
+                                        HAPUInt32CharacteristicReadRequest,
+                                        HAPUInt32CharacteristicWriteRequest> {
+    public:
+        UInt32Characteristic(
+                uint16_t iid,
+                const HAPUUID* type,
+                uint32_t min,
+                uint32_t max,
+                uint32_t step,
+                ReadHandler read_handler,
+                bool supports_notification,
+                WriteHandler write_handler = nullptr,
+                const char* debug_description = nullptr)
+            : ScalarCharacteristic(
+                      kHAPCharacteristicFormat_UInt32,
+                      iid,
+                      type,
+                      read_handler,
+                      supports_notification,
+                      write_handler,
+                      debug_description) {
+            HAPUInt32Characteristic* c = &hap_char_.char_.uint32;
+            c->constraints.minimumValue = min;
+            c->constraints.maximumValue = max;
+            c->constraints.stepValue = step;
+        }
+        virtual ~UInt32Characteristic() {
+        }
+    };
+
+    class UInt64Characteristic : public ScalarCharacteristic<
+                                        uint64_t,
+                                        HAPUInt64Characteristic,
+                                        HAPUInt64CharacteristicReadRequest,
+                                        HAPUInt64CharacteristicWriteRequest> {
+    public:
+        UInt64Characteristic(
+                uint16_t iid,
+                const HAPUUID* type,
+                uint64_t min,
+                uint64_t max,
+                uint64_t step,
+                ReadHandler read_handler,
+                bool supports_notification,
+                WriteHandler write_handler = nullptr,
+                const char* debug_description = nullptr)
+            : ScalarCharacteristic(
+                      kHAPCharacteristicFormat_UInt64,
+                      iid,
+                      type,
+                      read_handler,
+                      supports_notification,
+                      write_handler,
+                      debug_description) {
+            HAPUInt64Characteristic* c = &hap_char_.char_.uint64;
+            c->constraints.minimumValue = min;
+            c->constraints.maximumValue = max;
+            c->constraints.stepValue = step;
+        }
+        virtual ~UInt64Characteristic() {
         }
     };
 
