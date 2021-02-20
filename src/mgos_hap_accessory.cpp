@@ -72,6 +72,11 @@ namespace hap {
         server_ = server;
     }
 
+    void Accessory::SetName(const std::string &name) {
+        name_ = name;
+        hai_.acc.name = name_.c_str();
+    }
+
     void Accessory::SetCategory(HAPAccessoryCategory category) {
         hai_.acc.category = category;
     }
