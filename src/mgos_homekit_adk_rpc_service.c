@@ -89,9 +89,9 @@ static void mgos_hap_setup_handler(
                 (const uint8_t*) code,
                 strlen(code));
         salt = calloc(1, 24 + 1);
-        cs_base64_encode(setupInfo.salt, 16, salt);
+        cs_base64_encode(setupInfo.salt, 16, salt, NULL);
         verifier = calloc(1, 512 + 1);
-        cs_base64_encode(setupInfo.verifier, 384, verifier);
+        cs_base64_encode(setupInfo.verifier, 384, verifier, NULL);
     } else if (code == NULL && (salt != NULL && verifier != NULL)) {
         if (!mgos_hap_setup_info_from_string(&setupInfo, salt, verifier)) {
             mg_rpc_send_errorf(ri, 400, "invalid salt + verifier");
