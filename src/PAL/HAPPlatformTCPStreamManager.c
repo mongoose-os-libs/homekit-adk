@@ -29,7 +29,7 @@
 
 #define HAP_EVICT_MIN_IDLE_SECONDS 3
 // Stagger inbound connections, 1 every 2 seconds.
-#define HAP_ACCEPT_MIN_INTERVAL_SECONDS 3
+#define HAP_ACCEPT_MIN_INTERVAL_MICROS 1500000
 
 HAPNetworkPort HAPPlatformTCPStreamManagerGetListenerPort(HAPPlatformTCPStreamManagerRef tcpStreamManager) {
     return tcpStreamManager->actualPort;
@@ -148,7 +148,7 @@ static void HAPMGListenerHandler(struct mg_connection* nc, int ev, void* ev_data
                 int64_t now = mgos_uptime_micros();
                 // Give session GC a chance to run to release session.
                 if (now - tm->lastCloseTS > 50000 &&
-                    (tm->lastAcceptTS == 0 || now - tm->lastAcceptTS > HAP_ACCEPT_MIN_INTERVAL_SECONDS * 1000000)) {
+                    (tm->lastAcceptTS == 0 || now - tm->lastAcceptTS > HAP_ACCEPT_MIN_INTERVAL_MICROS)) {
                     tm->listenerCallback(tm, tm->listenerCallbackContext);
                 }
             } else {
