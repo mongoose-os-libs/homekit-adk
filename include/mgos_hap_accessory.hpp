@@ -40,7 +40,7 @@ namespace hap {
         HAPAccessoryServerRef* server() const;
         void set_server(HAPAccessoryServerRef* server);
 
-        void SetName(const std::string &name);
+        void SetName(const std::string& name);
         void SetCategory(HAPAccessoryCategory category);
 
         void AddService(Service* svc);

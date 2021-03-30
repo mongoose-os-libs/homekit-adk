@@ -72,7 +72,7 @@ namespace hap {
         server_ = server;
     }
 
-    void Accessory::SetName(const std::string &name) {
+    void Accessory::SetName(const std::string& name) {
         name_ = name;
         hai_.acc.name = name_.c_str();
     }

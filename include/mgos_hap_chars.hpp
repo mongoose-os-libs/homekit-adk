@@ -259,10 +259,10 @@ namespace hap {
     };
 
     class UInt16Characteristic : public ScalarCharacteristic<
-                                        uint16_t,
-                                        HAPUInt16Characteristic,
-                                        HAPUInt16CharacteristicReadRequest,
-                                        HAPUInt16CharacteristicWriteRequest> {
+                                         uint16_t,
+                                         HAPUInt16Characteristic,
+                                         HAPUInt16CharacteristicReadRequest,
+                                         HAPUInt16CharacteristicWriteRequest> {
     public:
         UInt16Characteristic(
                 uint16_t iid,
@@ -292,10 +292,10 @@ namespace hap {
     };
 
     class UInt32Characteristic : public ScalarCharacteristic<
-                                        uint32_t,
-                                        HAPUInt32Characteristic,
-                                        HAPUInt32CharacteristicReadRequest,
-                                        HAPUInt32CharacteristicWriteRequest> {
+                                         uint32_t,
+                                         HAPUInt32Characteristic,
+                                         HAPUInt32CharacteristicReadRequest,
+                                         HAPUInt32CharacteristicWriteRequest> {
     public:
         UInt32Characteristic(
                 uint16_t iid,
@@ -325,10 +325,10 @@ namespace hap {
     };
 
     class UInt64Characteristic : public ScalarCharacteristic<
-                                        uint64_t,
-                                        HAPUInt64Characteristic,
-                                        HAPUInt64CharacteristicReadRequest,
-                                        HAPUInt64CharacteristicWriteRequest> {
+                                         uint64_t,
+                                         HAPUInt64Characteristic,
+                                         HAPUInt64CharacteristicReadRequest,
+                                         HAPUInt64CharacteristicWriteRequest> {
     public:
         UInt64Characteristic(
                 uint16_t iid,
