@@ -192,6 +192,39 @@ namespace hap {
         }
     };
 
+    class IntCharacteristic : public ScalarCharacteristic<
+                                      int32_t,
+                                      HAPIntCharacteristic,
+                                      HAPIntCharacteristicReadRequest,
+                                      HAPIntCharacteristicWriteRequest> {
+    public:
+        IntCharacteristic(
+                uint16_t iid,
+                const HAPUUID* type,
+                int32_t min,
+                int32_t max,
+                int32_t step,
+                ReadHandler read_handler,
+                bool supports_notification,
+                WriteHandler write_handler = nullptr,
+                const char* debug_description = nullptr)
+            : ScalarCharacteristic(
+                      kHAPCharacteristicFormat_Int,
+                      iid,
+                      type,
+                      read_handler,
+                      supports_notification,
+                      write_handler,
+                      debug_description) {
+            HAPIntCharacteristic* c = &hap_char_.char_.int_;
+            c->constraints.minimumValue = min;
+            c->constraints.maximumValue = max;
+            c->constraints.stepValue = step;
+        }
+        virtual ~IntCharacteristic() {
+        }
+    };
+
     class FloatCharacteristic : public ScalarCharacteristic<
                                         float,
                                         HAPFloatCharacteristic,
