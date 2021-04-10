@@ -41,6 +41,7 @@ HAPError HAPPlatformTimerRegister(
         return kHAPError_OutOfResources;
     }
     int64_t duration = ((int64_t) deadline - (int64_t) HAPPlatformClockGetCurrent());
+    if (duration < 0) duration = 0;
     ctx->timer_id = mgos_set_timer((int) duration, 0, hap_timer_cb, ctx);
     if (ctx->timer_id == MGOS_INVALID_TIMER_ID) {
         return kHAPError_OutOfResources;
