@@ -103,7 +103,7 @@ namespace hap {
 
     // Template class that can be used to create scalar-value characteristics.
     template <class ValType, class HAPBaseClass, class HAPReadRequestType, class HAPWriteRequestType>
-    struct ScalarCharacteristic : public Characteristic {
+    class ScalarCharacteristic : public Characteristic {
     public:
         typedef std::function<
                 HAPError(HAPAccessoryServerRef* server, const HAPReadRequestType* request, ValType* value)>
@@ -166,7 +166,7 @@ namespace hap {
         const WriteHandler write_handler_;
     };
 
-    struct BoolCharacteristic : public ScalarCharacteristic<
+    class BoolCharacteristic : public ScalarCharacteristic<
                                         bool,
                                         HAPBoolCharacteristic,
                                         HAPBoolCharacteristicReadRequest,
