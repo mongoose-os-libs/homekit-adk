@@ -21,9 +21,9 @@ includes:
   - HomeKitADK/HAP
 
 libs:
-  - origin: https://github.com/mongoose-os-libs/core
-  - origin: https://github.com/mongoose-os-libs/dns-sd
-  - origin: https://github.com/mongoose-os-libs/mbedtls
+  - location: https://github.com/mongoose-os-libs/core
+  - location: https://github.com/mongoose-os-libs/dns-sd
+  - location: https://github.com/mongoose-os-libs/mbedtls
 
 init_after:
   - rpc-common
