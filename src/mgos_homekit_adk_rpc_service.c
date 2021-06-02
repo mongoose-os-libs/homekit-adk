@@ -29,6 +29,9 @@
 static const HAPAccessory* s_acc = NULL;
 static HAPAccessoryServerRef* s_server = NULL;
 static void (*s_start_cb)(HAPAccessoryServerRef* _Nonnull server) = NULL;
+char* g_hap_setup_id = NULL;
+
+static void mgos_hap_stop_and_reset_server(struct mg_rpc_request_info* ri, bool reset_code, bool reset_server);
 
 static bool set_salt_and_verfier(const char* salt, const char* verifier, int config_level) {
 
@@ -65,17 +68,17 @@ static void mgos_hap_setup_handler(
         void* cb_arg,
         struct mg_rpc_frame_info* fi,
         struct mg_str args) {
-    char* code = NULL;
+    char *code = NULL, *id = NULL;
     char *salt = NULL, *verifier = NULL;
     int config_level = 2;
     bool start_server = true;
     HAPSetupInfo setupInfo;
 
-    json_scanf(args.p, args.len, ri->args_fmt, &code, &salt, &verifier, &config_level, &start_server);
+    json_scanf(args.p, args.len, ri->args_fmt, &code, &id, &salt, &verifier, &config_level, &start_server);
 
     if (code != NULL && (salt == NULL && verifier == NULL)) {
         if (!HAPAccessorySetupIsValidSetupCode(code)) {
-            mg_rpc_send_errorf(ri, 400, "invalid code");
+            mg_rpc_send_errorf(ri, 400, "invalid %s", "code");
             ri = NULL;
             goto out;
         }
@@ -94,12 +97,18 @@ static void mgos_hap_setup_handler(
         cs_base64_encode(setupInfo.verifier, 384, verifier, NULL);
     } else if (code == NULL && (salt != NULL && verifier != NULL)) {
         if (!mgos_hap_setup_info_from_string(&setupInfo, salt, verifier)) {
-            mg_rpc_send_errorf(ri, 400, "invalid salt + verifier");
+            mg_rpc_send_errorf(ri, 400, "invalid", "salt + verifier");
             ri = NULL;
             goto out;
         }
     } else {
         mg_rpc_send_errorf(ri, 400, "either code or salt + verifier required");
+        ri = NULL;
+        goto out;
+    }
+
+    if (id != NULL && !HAPAccessorySetupIsValidSetupID(id)) {
+        mg_rpc_send_errorf(ri, 400, "invalid %s '%s'", "id", id);
         ri = NULL;
         goto out;
     }
@@ -110,13 +119,28 @@ static void mgos_hap_setup_handler(
         goto out;
     }
 
-    mg_rpc_send_responsef(ri, NULL);
+    free(g_hap_setup_id);
+    g_hap_setup_id = id;
+    id = NULL;
 
-    if (start_server && HAPAccessoryServerGetState(s_server) == kHAPAccessoryServerState_Idle) {
-        s_start_cb(s_server);
+    if (start_server) {
+      switch (HAPAccessoryServerGetState(s_server)) {
+        case kHAPAccessoryServerState_Idle:
+          s_start_cb(s_server);
+          mg_rpc_send_responsef(ri, NULL);
+          break;
+        case kHAPAccessoryServerState_Running:
+          // Restart server without resetting code (which we've just set).
+          mgos_hap_stop_and_reset_server(ri, false /* reset_code */, true /* reset_server */);
+          break;
+        default:
+          mg_rpc_send_responsef(ri, NULL);
+          break;
+      }
     }
 
 out:
+    free(id);
     free(code);
     free(salt);
     free(verifier);
@@ -175,6 +199,14 @@ static void stop_and_reset(void* arg) {
     }
 }
 
+static void mgos_hap_stop_and_reset_server(struct mg_rpc_request_info* ri, bool reset_code, bool reset_server) {
+    struct reset_ctx* ctx = calloc(1, sizeof(*ctx));
+    ctx->ri = ri;
+    ctx->reset_server = reset_server;
+    ctx->reset_code = reset_code;
+    stop_and_reset(ctx);
+}
+
 static void mgos_hap_reset_handler(
         struct mg_rpc_request_info* ri,
         void* cb_arg,
@@ -188,11 +220,7 @@ static void mgos_hap_reset_handler(
         return;
     }
 
-    struct reset_ctx* ctx = calloc(1, sizeof(*ctx));
-    ctx->ri = ri;
-    ctx->reset_server = reset_server;
-    ctx->reset_code = reset_code;
-    stop_and_reset(ctx);
+    mgos_hap_stop_and_reset_server(ri, true /* reset_code */, true /* reset_server */);
 
     (void) cb_arg;
     (void) fi;
@@ -215,7 +243,7 @@ void mgos_hap_add_rpc_service_cb(
     mg_rpc_add_handler(
             mgos_rpc_get_global(),
             "HAP.Setup",
-            "{code: %Q, salt: %Q, verifier: %Q, config_level: %d, start_server: %B}",
+            "{code: %Q, id: %Q, salt: %Q, verifier: %Q, config_level: %d, start_server: %B}",
             mgos_hap_setup_handler,
             NULL);
     mg_rpc_add_handler(

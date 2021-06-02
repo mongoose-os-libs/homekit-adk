@@ -113,12 +113,25 @@ bool mgos_hap_setup_info_from_string(HAPSetupInfo* setupInfo, const char* salt, 
 }
 
 #ifdef MGOS_HAP_SIMPLE_CONFIG
-static void setup_info_cb(int ev, void* ev_data, void* userdata) {
+static void mgos_hap_load_setup_info_cb(int ev, void* ev_data, void* userdata) {
     struct mgos_hap_load_setup_info_arg* arg = (struct mgos_hap_load_setup_info_arg*) ev_data;
     if (!mgos_hap_setup_info_from_string(
                 arg->setupInfo, mgos_sys_config_get_hap_salt(), mgos_sys_config_get_hap_verifier())) {
         LOG(LL_ERROR, ("Failed to load HAP accessory info from config!"));
     }
+    (void) ev;
+    (void) userdata;
+}
+
+extern char* g_hap_setup_id;
+
+static void mgos_hap_load_setup_id_cb(int ev, void* ev_data, void* userdata) {
+    struct mgos_hap_load_setup_id_arg* arg = (struct mgos_hap_load_setup_id_arg*) ev_data;
+    if (g_hap_setup_id == NULL)
+        return;
+    *arg->valid = true;
+    memset(arg->setupID->stringValue, 0, sizeof(arg->setupID->stringValue));
+    strncpy(arg->setupID->stringValue, g_hap_setup_id, sizeof(arg->setupID->stringValue) - 1);
     (void) ev;
     (void) userdata;
 }
@@ -132,7 +145,8 @@ bool mgos_hap_config_valid(void) {
 
 bool mgos_homekit_adk_init(void) {
 #ifdef MGOS_HAP_SIMPLE_CONFIG
-    mgos_event_add_handler(MGOS_HAP_EV_LOAD_SETUP_INFO, setup_info_cb, NULL);
+    mgos_event_add_handler(MGOS_HAP_EV_LOAD_SETUP_INFO, mgos_hap_load_setup_info_cb, NULL);
+    mgos_event_add_handler(MGOS_HAP_EV_LOAD_SETUP_ID, mgos_hap_load_setup_id_cb, NULL);
 #endif
     mgos_event_register_base(MGOS_HAP_EV_BASE, "HAP");
     return true;
