@@ -123,15 +123,14 @@ static void mgos_hap_load_setup_info_cb(int ev, void* ev_data, void* userdata) {
     (void) userdata;
 }
 
-extern char* g_hap_setup_id;
+HAPSetupID g_hap_setup_id;
 
 static void mgos_hap_load_setup_id_cb(int ev, void* ev_data, void* userdata) {
     struct mgos_hap_load_setup_id_arg* arg = (struct mgos_hap_load_setup_id_arg*) ev_data;
-    if (g_hap_setup_id == NULL)
+    if (g_hap_setup_id.stringValue[0] == '\0')
         return;
     *arg->valid = true;
-    memset(arg->setupID->stringValue, 0, sizeof(arg->setupID->stringValue));
-    strncpy(arg->setupID->stringValue, g_hap_setup_id, sizeof(arg->setupID->stringValue) - 1);
+    *arg->setupID = g_hap_setup_id;
     (void) ev;
     (void) userdata;
 }

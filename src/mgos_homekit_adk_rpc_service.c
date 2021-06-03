@@ -29,9 +29,34 @@
 static const HAPAccessory* s_acc = NULL;
 static HAPAccessoryServerRef* s_server = NULL;
 static void (*s_start_cb)(HAPAccessoryServerRef* _Nonnull server) = NULL;
-char* g_hap_setup_id = NULL;
+HAPSetupID g_hap_setup_id;
 
-static void mgos_hap_stop_and_reset_server(struct mg_rpc_request_info* ri, bool reset_code, bool reset_server);
+static void mgos_hap_stop_and_reset_server(
+        struct mg_rpc_request_info* ri,
+        bool reset_code,
+        bool reset_server,
+        char* setup_code);
+
+static void hap_setup_response(struct mg_rpc_request_info* ri, const char* setup_code) {
+    if (setup_code == NULL) {
+        mg_rpc_send_responsef(ri, "{}");
+        return;
+    }
+    HAPSetupCode sc = { 0 };
+    strncpy(sc.stringValue, setup_code, 10);
+    HAPSetupPayload payload = { 0 };
+    HAPAccessoryServer* server = (HAPAccessoryServer*) s_server;
+    if (server != NULL && server->primaryAccessory != NULL) {
+        HAPAccessorySetupSetupPayloadFlags flags = {
+            .isPaired = false,
+            .ipSupported = (server->transports.ip != NULL),
+            .bleSupported = (server->transports.ble != NULL),
+        };
+        HAPAccessorySetupGetSetupPayload(&payload, &sc, &g_hap_setup_id, flags, server->primaryAccessory->category);
+    }
+    mg_rpc_send_responsef(
+            ri, "{code: %Q, id: %Q, url: %Q}", setup_code, g_hap_setup_id.stringValue, payload.stringValue);
+}
 
 static bool set_salt_and_verfier(const char* salt, const char* verifier, int config_level) {
 
@@ -77,7 +102,11 @@ static void mgos_hap_setup_handler(
     json_scanf(args.p, args.len, ri->args_fmt, &code, &id, &salt, &verifier, &config_level, &start_server);
 
     if (code != NULL && (salt == NULL && verifier == NULL)) {
-        if (!HAPAccessorySetupIsValidSetupCode(code)) {
+        if (strcmp(code, "RANDOMCODE") == 0) {
+            HAPSetupCode random_code;
+            HAPAccessorySetupGenerateRandomSetupCode(&random_code);
+            strncpy(code, random_code.stringValue, 10);
+        } else if (!HAPAccessorySetupIsValidSetupCode(code)) {
             mg_rpc_send_errorf(ri, 400, "invalid %s", "code");
             ri = NULL;
             goto out;
@@ -107,10 +136,18 @@ static void mgos_hap_setup_handler(
         goto out;
     }
 
-    if (id != NULL && !HAPAccessorySetupIsValidSetupID(id)) {
-        mg_rpc_send_errorf(ri, 400, "invalid %s '%s'", "id", id);
-        ri = NULL;
-        goto out;
+    if (id != NULL) {
+        if (strlen(id) == 0) {
+            memset(&g_hap_setup_id, 0, sizeof(g_hap_setup_id));
+        } else if (strcmp(id, "RANDOMID") == 0) {
+            HAPAccessorySetupGenerateRandomSetupID(&g_hap_setup_id);
+        } else if (HAPAccessorySetupIsValidSetupID(id)) {
+            memcpy(g_hap_setup_id.stringValue, id, sizeof(g_hap_setup_id.stringValue) - 1);
+        } else {
+            mg_rpc_send_errorf(ri, 400, "invalid %s '%s'", "id", id);
+            ri = NULL;
+            goto out;
+        }
     }
 
     if (!set_salt_and_verfier(salt, verifier, config_level)) {
@@ -119,24 +156,21 @@ static void mgos_hap_setup_handler(
         goto out;
     }
 
-    free(g_hap_setup_id);
-    g_hap_setup_id = id;
-    id = NULL;
-
     if (start_server) {
-      switch (HAPAccessoryServerGetState(s_server)) {
-        case kHAPAccessoryServerState_Idle:
-          s_start_cb(s_server);
-          mg_rpc_send_responsef(ri, NULL);
-          break;
-        case kHAPAccessoryServerState_Running:
-          // Restart server without resetting code (which we've just set).
-          mgos_hap_stop_and_reset_server(ri, false /* reset_code */, true /* reset_server */);
-          break;
-        default:
-          mg_rpc_send_responsef(ri, NULL);
-          break;
-      }
+        switch (HAPAccessoryServerGetState(s_server)) {
+            case kHAPAccessoryServerState_Idle:
+                s_start_cb(s_server);
+                hap_setup_response(ri, code);
+                break;
+            case kHAPAccessoryServerState_Running:
+                // Restart server without resetting code (which we've just set).
+                mgos_hap_stop_and_reset_server(ri, false /* reset_code */, true /* reset_server */, code);
+                code = NULL;
+                break;
+            default:
+                mg_rpc_send_responsef(ri, NULL);
+                break;
+        }
     }
 
 out:
@@ -153,6 +187,7 @@ struct reset_ctx {
     bool reset_server;
     bool reset_code;
     bool stopped_server;
+    char* setup_code;
 };
 
 static void stop_and_reset(void* arg) {
@@ -190,7 +225,12 @@ static void stop_and_reset(void* arg) {
                 s_start_cb(s_server);
             }
             if (res) {
-                mg_rpc_send_responsef(ctx->ri, NULL);
+                if (ctx->setup_code != NULL) {
+                    hap_setup_response(ctx->ri, ctx->setup_code);
+                    free(ctx->setup_code);
+                } else {
+                    mg_rpc_send_responsef(ctx->ri, NULL);
+                }
             } else {
                 mg_rpc_send_errorf(ctx->ri, 500, "error %d", err);
             }
@@ -199,11 +239,16 @@ static void stop_and_reset(void* arg) {
     }
 }
 
-static void mgos_hap_stop_and_reset_server(struct mg_rpc_request_info* ri, bool reset_code, bool reset_server) {
+static void mgos_hap_stop_and_reset_server(
+        struct mg_rpc_request_info* ri,
+        bool reset_code,
+        bool reset_server,
+        char* setup_code) {
     struct reset_ctx* ctx = calloc(1, sizeof(*ctx));
     ctx->ri = ri;
     ctx->reset_server = reset_server;
     ctx->reset_code = reset_code;
+    ctx->setup_code = setup_code;
     stop_and_reset(ctx);
 }
 
@@ -220,7 +265,7 @@ static void mgos_hap_reset_handler(
         return;
     }
 
-    mgos_hap_stop_and_reset_server(ri, true /* reset_code */, true /* reset_server */);
+    mgos_hap_stop_and_reset_server(ri, true /* reset_code */, true /* reset_server */, NULL /* setup_code */);
 
     (void) cb_arg;
     (void) fi;
