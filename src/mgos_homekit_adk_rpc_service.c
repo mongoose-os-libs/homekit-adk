@@ -126,7 +126,7 @@ static void mgos_hap_setup_handler(
         cs_base64_encode(setupInfo.verifier, 384, verifier, NULL);
     } else if (code == NULL && (salt != NULL && verifier != NULL)) {
         if (!mgos_hap_setup_info_from_string(&setupInfo, salt, verifier)) {
-            mg_rpc_send_errorf(ri, 400, "invalid", "salt + verifier");
+            mg_rpc_send_errorf(ri, 400, "invalid %s", "salt + verifier");
             ri = NULL;
             goto out;
         }
