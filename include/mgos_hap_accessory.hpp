@@ -34,7 +34,8 @@ namespace hap {
                 HAPAccessoryCategory category,
                 const std::string& name,
                 const IdentifyCB& identify_cb,
-                HAPAccessoryServerRef* server = nullptr);
+                HAPAccessoryServerRef* server = nullptr,
+                const std::string& serial_number = "");
         virtual ~Accessory();
 
         HAPAccessoryServerRef* server() const;
@@ -42,6 +43,7 @@ namespace hap {
 
         void SetName(const std::string& name);
         void SetCategory(HAPAccessoryCategory category);
+        void SetSerialNumber(const std::string& sn);
 
         void AddService(Service* svc);
         void AddService(std::unique_ptr<Service> svc);
@@ -56,6 +58,7 @@ namespace hap {
         std::string name_;
         const IdentifyCB identify_cb_;
         HAPAccessoryServerRef* server_;
+        std::string serial_number_;
 
         struct HAPAccessoryWithInstance {
             HAPAccessory acc;
@@ -64,7 +67,6 @@ namespace hap {
 
         std::vector<std::unique_ptr<Service>> svcs_;
         std::vector<const HAPService*> hap_svcs_;
-        std::string fw_version_;
 
         Accessory(const Accessory& other) = delete;
     };

@@ -19,6 +19,8 @@
 
 #include "mgos.hpp"
 
+#include "HAPIPAccessoryProtocol.h"
+
 namespace mgos {
 namespace hap {
 
@@ -27,10 +29,12 @@ namespace hap {
             HAPAccessoryCategory category,
             const std::string& name,
             const IdentifyCB& identify_cb,
-            HAPAccessoryServerRef* server)
+            HAPAccessoryServerRef* server,
+            const std::string& serial_number)
         : name_(name)
         , identify_cb_(identify_cb)
         , server_(server)
+        , serial_number_(serial_number)
         , hai_({}) {
         HAPAccessory* a = &hai_.acc;
         a->aid = aid;
@@ -38,25 +42,31 @@ namespace hap {
         a->name = name_.c_str();
         a->manufacturer = CS_STRINGIFY_MACRO(PRODUCT_VENDOR);
         a->model = CS_STRINGIFY_MACRO(PRODUCT_MODEL);
-        a->serialNumber = mgos_sys_config_get_device_sn();
-        if (a->serialNumber == nullptr) {
-            static char sn[13] = "????????????";
-            mgos_expand_mac_address_placeholders(sn);
-            a->serialNumber = sn;
+        if (serial_number_.length() == 0) {
+            char sn[13] = "????????????";
+            if (!mgos_conf_str_empty(mgos_sys_config_get_device_sn())) {
+                serial_number_ = mgos_sys_config_get_device_sn();
+            } else {
+                mgos_expand_mac_address_placeholders(sn);
+                serial_number_ = sn;
+            }
+            // To avoid duplicate serial numbers, append AID for accessories other than primary.
+            if (aid != kHAPIPAccessoryProtocolAID_PrimaryAccessory) {
+                snprintf(sn, sizeof(sn) - 1, "-%d", (int) aid);
+                serial_number_.append(sn);
+            }
         }
+        serial_number_.shrink_to_fit();
+        a->serialNumber = serial_number_.c_str();
         // Sanitize firmware version for HAP, it must be x.y.z and nothing else.
         // Strip any additional components after '-'.
-        const char* p;
-        for (p = mgos_sys_ro_vars_get_fw_version(); *p != '\0' && (isdigit(*p) || *p == '.'); p++) {
-            fw_version_.append(p, 1);
+        static char hap_fw_version[12];
+        const char* p = mgos_sys_ro_vars_get_fw_version();
+        size_t i = 0;
+        while (*p != '\0' && (isdigit(*p) || *p == '.') && i < sizeof(hap_fw_version) - 1) {
+            hap_fw_version[i++] = *p++;
         }
-        if (*p != '\0') {
-            a->firmwareVersion = fw_version_.c_str();
-            fw_version_.shrink_to_fit();
-        } else {
-            a->firmwareVersion = mgos_sys_ro_vars_get_fw_version();
-            fw_version_.clear();
-        }
+        a->firmwareVersion = hap_fw_version;
         a->hardwareVersion = CS_STRINGIFY_MACRO(PRODUCT_HW_REV);
         a->callbacks.identify = &Accessory::Identify;
         hai_.inst = this;
@@ -74,11 +84,18 @@ namespace hap {
 
     void Accessory::SetName(const std::string& name) {
         name_ = name;
+        name_.shrink_to_fit();
         hai_.acc.name = name_.c_str();
     }
 
     void Accessory::SetCategory(HAPAccessoryCategory category) {
         hai_.acc.category = category;
+    }
+
+    void Accessory::SetSerialNumber(const std::string& sn) {
+        serial_number_ = sn;
+        serial_number_.shrink_to_fit();
+        hai_.acc.serialNumber = serial_number_.c_str();
     }
 
     void Accessory::AddService(Service* svc) {
