@@ -26,6 +26,7 @@ libs:
   - location: https://github.com/mongoose-os-libs/mbedtls
 
 init_after:
+  - bt-common
   - rpc-common
 
 build_vars:
