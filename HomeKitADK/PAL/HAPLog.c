@@ -14,7 +14,7 @@ const HAPLogObject kHAPLog_Default = { .subsystem = NULL, .category = NULL };
 /**
  * Maximum length of a log message.
  */
-#define kHAPLogMessage_MaxBytes ((size_t)(2 * 1024))
+#define kHAPLogMessage_MaxBytes ((size_t)(1 * 1024))
 
 HAP_PRINTFLIKE(5, 0)
 static void
