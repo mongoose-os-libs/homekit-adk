@@ -21,18 +21,13 @@
 #include "mongoose.h"
 
 int HAPPlatformLogLevel(void) {
-    int l = mgos_sys_config_get_debug_level();
-    if (l < 0) {
-        return kHAPPlatformLogEnabledTypes_None;
-    }
-    if (l > 3) {
-        return kHAPPlatformLogEnabledTypes_Debug;
-    };
-    return (HAPPlatformLogEnabledTypes) l;
+    // Pass everything to mos logging subsystem.
+    return kHAPPlatformLogEnabledTypes_Debug;
 }
 
 HAPPlatformLogEnabledTypes HAPPlatformLogGetEnabledTypes(const HAPLogObject* log HAP_UNUSED) {
-    return (HAPPlatformLogEnabledTypes) HAPPlatformLogLevel();
+    // Pass everything to mos logging subsystem.
+    return kHAPPlatformLogEnabledTypes_Debug;
 }
 
 void HAPPlatformLogCapture(
