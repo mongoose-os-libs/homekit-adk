@@ -152,6 +152,17 @@ int HAP_srp_premaster_secret(
         const uint8_t priv_b[SRP_SECRET_KEY_BYTES],
         const uint8_t u[SRP_SCRAMBLING_PARAMETER_BYTES],
         const uint8_t v[SRP_VERIFIER_BYTES]);
+#define HAP_SRP_PREMASTER_SECRET_NEED_MORE  -1
+#define HAP_SRP_PREMASTER_SECRET_STAGE_DONE 5
+/* Staged version of HAP_srp_premaster_secret in order to split
+ * expensive crypto operations. */
+int HAP_srp_premaster_secret_stage(
+        uint8_t s[SRP_PREMASTER_SECRET_BYTES],
+        const uint8_t pub_a[SRP_PUBLIC_KEY_BYTES],
+        const uint8_t priv_b[SRP_SECRET_KEY_BYTES],
+        const uint8_t u[SRP_SCRAMBLING_PARAMETER_BYTES],
+        const uint8_t v[SRP_VERIFIER_BYTES],
+        uint8_t* stage);
 void HAP_srp_session_key(uint8_t k[SRP_SESSION_KEY_BYTES], const uint8_t s[SRP_PREMASTER_SECRET_BYTES]);
 void HAP_srp_proof_m1(
         uint8_t m1[SRP_PROOF_BYTES],

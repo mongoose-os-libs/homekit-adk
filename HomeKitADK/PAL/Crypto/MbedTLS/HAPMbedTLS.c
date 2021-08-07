@@ -328,43 +328,90 @@ void HAP_srp_scrambling_parameter(
     sha512_final(&ctx, u);
 }
 
+int HAP_srp_premaster_secret_stage(
+        uint8_t s[SRP_PREMASTER_SECRET_BYTES],
+        const uint8_t pub_a[SRP_PUBLIC_KEY_BYTES],
+        const uint8_t priv_b[SRP_SECRET_KEY_BYTES],
+        const uint8_t u[SRP_SCRAMBLING_PARAMETER_BYTES],
+        const uint8_t v[SRP_VERIFIER_BYTES],
+        uint8_t* stage) {
+    int ret;
+    switch (*stage) {
+        case 0: {
+            break;
+        }
+        case 1: {
+            bool isAValid = false;
+            BN_FROM_BYTES(A, pub_a, SRP_PUBLIC_KEY_BYTES, {
+                // Refer RFC 5054: https://tools.ietf.org/html/rfc5054
+                // Section 2.5.4
+                // Fail if A%N == 0
+                WITH_BN(rem, {
+                    ret = mbedtls_mpi_mod_mpi(&rem, &A, &N);
+                    HAPAssert(ret == 0);
+                    isAValid = (mbedtls_mpi_cmp_int(&rem, 0) != 0);
+                });
+            });
+            if (!isAValid)
+                return 1;
+            break;
+        }
+        case 2: {
+            BN_FROM_BYTES(u_, u, SRP_SCRAMBLING_PARAMETER_BYTES, {
+                BN_FROM_BYTES(v_, v, SRP_VERIFIER_BYTES, {
+                    WRAP_BN_BYTES(s_, s, SRP_PREMASTER_SECRET_BYTES, {
+                        ret = mbedtls_mpi_exp_mod(&s_, &v_, &u_, &N, NULL);
+                        HAPAssert(ret == 0);
+                    });
+                });
+            });
+            break;
+        }
+        case 3: {
+            BN_FROM_BYTES(s_, s, SRP_PREMASTER_SECRET_BYTES, {
+                BN_FROM_BYTES(A, pub_a, SRP_PUBLIC_KEY_BYTES, {
+                    ret = mbedtls_mpi_mul_mpi(&s_, &A, &s_);
+                    HAPAssert(ret == 0);
+                    ret = mbedtls_mpi_mod_mpi(&s_, &s_, &N);
+                    HAPAssert(ret == 0);
+                });
+                MPI_WRITE_BINARY(s_, s, SRP_PREMASTER_SECRET_BYTES);
+            });
+            break;
+        }
+        case 4: {
+            BN_FROM_BYTES(s_, s, SRP_PREMASTER_SECRET_BYTES, {
+                BN_FROM_BYTES(b, priv_b, SRP_SECRET_KEY_BYTES, {
+                    ret = mbedtls_mpi_exp_mod(&s_, &s_, &b, &N, NULL);
+                    HAPAssert(ret == 0);
+                });
+                MPI_WRITE_BINARY(s_, s, SRP_PREMASTER_SECRET_BYTES);
+            });
+            break;
+        }
+        case HAP_SRP_PREMASTER_SECRET_STAGE_DONE: {
+            return 0;
+        }
+        default: {
+            return 2;
+        }
+    }
+    (*stage)++;
+    return HAP_SRP_PREMASTER_SECRET_NEED_MORE;
+}
+
 int HAP_srp_premaster_secret(
         uint8_t s[SRP_PREMASTER_SECRET_BYTES],
         const uint8_t pub_a[SRP_PUBLIC_KEY_BYTES],
         const uint8_t priv_b[SRP_SECRET_KEY_BYTES],
         const uint8_t u[SRP_SCRAMBLING_PARAMETER_BYTES],
         const uint8_t v[SRP_VERIFIER_BYTES]) {
-    bool isAValid = false;
-    BN_FROM_BYTES(A, pub_a, SRP_PUBLIC_KEY_BYTES, {
-        // Refer RFC 5054: https://tools.ietf.org/html/rfc5054
-        // Section 2.5.4
-        // Fail if A%N == 0
-        WITH_BN(rem, {
-            int ret = mbedtls_mpi_mod_mpi(&rem, &A, &N);
-            HAPAssert(ret == 0);
-            if (mbedtls_mpi_cmp_int(&rem, 0) != 0) {
-                isAValid = true;
-            }
-        });
-
-        BN_FROM_BYTES(b, priv_b, SRP_SECRET_KEY_BYTES, {
-            BN_FROM_BYTES(u_, u, SRP_SCRAMBLING_PARAMETER_BYTES, {
-                BN_FROM_BYTES(v_, v, SRP_VERIFIER_BYTES, {
-                    WRAP_BN_BYTES(s_, s, SRP_PREMASTER_SECRET_BYTES, {
-                        int ret = mbedtls_mpi_exp_mod(&s_, &v_, &u_, &N, NULL);
-                        HAPAssert(ret == 0);
-                        ret = mbedtls_mpi_mul_mpi(&s_, &A, &s_);
-                        HAPAssert(ret == 0);
-                        ret = mbedtls_mpi_mod_mpi(&s_, &s_, &N);
-                        HAPAssert(ret == 0);
-                        ret = mbedtls_mpi_exp_mod(&s_, &s_, &b, &N, NULL);
-                        HAPAssert(ret == 0);
-                    });
-                });
-            });
-        });
-    });
-    return (isAValid) ? 0 : 1;
+    int ret;
+    uint8_t i = 0;
+    do {
+        ret = HAP_srp_premaster_secret_stage(s, pub_a, priv_b, u, v, &i);
+    } while (ret == HAP_SRP_PREMASTER_SECRET_NEED_MORE);
+    return ret;
 }
 
 static size_t Count_Leading_Zeroes(const uint8_t* start, size_t n) {
