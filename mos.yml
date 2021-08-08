@@ -55,10 +55,10 @@ conds:
 cdefs:
   HAP_VERSION: '\"1.0.1\"'
   HAP_IDENTIFICATION: '\"https://github.com/mongoose-os-libs/homekit-adk\"'
-  # Tips for saving space:
-  #HAP_LOG_LEVEL: 0
-  #HAP_DISABLE_ASSERTS: 1
-  #HAP_DISABLE_PRECONDITIONS: 1
+  # Tips for saving space: override this to 0, disable asserts and preconditions.
+  HAP_LOG_LEVEL: 3
+  # HAP_DISABLE_ASSERTS: 1
+  # HAP_DISABLE_PRECONDITIONS: 1
 
 tags:
   - c

@@ -20,11 +20,6 @@
 #include "mgos.h"
 #include "mongoose.h"
 
-int HAPPlatformLogLevel(void) {
-    // Pass everything to mos logging subsystem.
-    return kHAPPlatformLogEnabledTypes_Debug;
-}
-
 HAPPlatformLogEnabledTypes HAPPlatformLogGetEnabledTypes(const HAPLogObject* log HAP_UNUSED) {
     // Pass everything to mos logging subsystem.
     return kHAPPlatformLogEnabledTypes_Debug;
