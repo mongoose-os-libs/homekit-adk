@@ -482,11 +482,10 @@ static HAPError HAPPairingPairSetupGetM4(
         int ss = server->pairSetup.srpPMSStage;
         int e = HAP_srp_premaster_secret_stage(
                 S, server->pairSetup.A, server->pairSetup.b, u, setupInfo->verifier, &server->pairSetup.srpPMSStage);
+        HAPLogDebug(&logObject, "SRP PMS stage %d sp %p res %d", ss, S, e);
         if (e) {
             HAPAssert(e == 1 || e == 2 || e == HAP_SRP_PREMASTER_SECRET_NEED_MORE);
             if (e == HAP_SRP_PREMASTER_SECRET_NEED_MORE) {
-                HAPLogDebug(&logObject, "SRP PMS stage %d", server->pairSetup.srpPMSStage);
-                (void) ss;
                 return kHAPError_Busy;
             }
             // Illegal key A.
@@ -494,6 +493,7 @@ static HAPError HAPPairingPairSetupGetM4(
             session->state.pairSetup.error = kHAPPairingError_Authentication;
             return kHAPError_None;
         }
+        (void) ss;
         HAPLogSensitiveBufferDebug(&logObject, S, SRP_PREMASTER_SECRET_BYTES, "Pair Setup M4: S.");
 
         HAP_srp_session_key(server->pairSetup.K, S);
