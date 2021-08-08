@@ -143,6 +143,7 @@ typedef struct {
         uint8_t srpPMSStage;
     } pairSetup;
 
+#if HAP_IP
     /**
      * IP specific attributes.
      */
@@ -200,7 +201,8 @@ typedef struct {
         /** Currently registered Bonjour service. */
         HAPIPServiceDiscoveryType discoverableService;
     } ip;
-
+#endif
+#if HAP_BLE
     /**
      * BLE specific attributes.
      */
@@ -282,7 +284,7 @@ typedef struct {
             } broadcastedEvent;
         } adv;
     } ble;
-
+#endif
     /** Client context pointer. */
     void* _Nullable context;
 } HAPAccessoryServer;

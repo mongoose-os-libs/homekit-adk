@@ -6,7 +6,12 @@ version: 1.0.1
 # Upstream commit: https://github.com/apple/HomeKitADK/commit/24f76f891c644e8124896ec48fe2b90e358fb73e
 
 sources:
-  - HomeKitADK/HAP
+  # Carefully avoiding IP and BLE files, will be added later if enabled.
+  - HomeKitADK/HAP/HAP[ACDJLMRSTUV]*.c
+  - HomeKitADK/HAP/HAPPairing.c
+  - HomeKitADK/HAP/HAPPairingPair*.c
+  - HomeKitADK/HAP/HAPPDU.c
+  - HomeKitADK/HAP/HAPBitSet.c
   - HomeKitADK/PAL
   - HomeKitADK/PAL/Crypto/MbedTLS
   - HomeKitADK/External/Base64
@@ -30,8 +35,21 @@ init_after:
   - rpc-common
 
 build_vars:
+  # Override to 0 to disable BLE or IP transport.
+  MGOS_HAP_IP: 1
+  MGOS_HAP_BLE: 1
   # Override this to 0 to disable setup info configuration settings.
   MGOS_HAP_SIMPLE_CONFIG: 1
+
+cdefs:
+  HAP_IP: 0
+  HAP_BLE: 0
+  HAP_VERSION: '\"1.0.1\"'
+  HAP_IDENTIFICATION: '\"https://github.com/mongoose-os-libs/homekit-adk\"'
+  # Tips for saving space: override this to 0, disable asserts and preconditions.
+  HAP_LOG_LEVEL: 3
+  # HAP_DISABLE_ASSERTS: 1
+  # HAP_DISABLE_PRECONDITIONS: 1
 
 config_schema:
   - ["dns_sd.enable", true]
@@ -51,14 +69,19 @@ conds:
       cdefs:
         MGOS_HAP_SIMPLE_CONFIG: 1
 
+  - when: build_vars.MGOS_HAP_IP == "1"
+    apply:
+      sources:
+        - HomeKitADK/HAP/HAPIP*.c
+      cdefs:
+        HAP_IP: 1
 
-cdefs:
-  HAP_VERSION: '\"1.0.1\"'
-  HAP_IDENTIFICATION: '\"https://github.com/mongoose-os-libs/homekit-adk\"'
-  # Tips for saving space: override this to 0, disable asserts and preconditions.
-  HAP_LOG_LEVEL: 3
-  # HAP_DISABLE_ASSERTS: 1
-  # HAP_DISABLE_PRECONDITIONS: 1
+  - when: build_vars.MGOS_HAP_BLE == "1"
+    apply:
+      sources:
+        - HomeKitADK/HAP/HAP*BLE*.c
+      cdefs:
+        HAP_BLE: 1
 
 tags:
   - c

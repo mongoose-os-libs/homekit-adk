@@ -11,14 +11,6 @@
 extern "C" {
 #endif
 
-// Core features.
-#ifndef HAP_IP
-#define HAP_IP 1
-#endif
-#ifndef HAP_BLE
-#define HAP_BLE 1
-#endif
-
 #include <stdlib.h>
 
 #include "HAP.h"

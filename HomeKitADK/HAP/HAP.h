@@ -11,6 +11,14 @@
 extern "C" {
 #endif
 
+// Core features.
+#ifndef HAP_IP
+#define HAP_IP 1
+#endif
+#ifndef HAP_BLE
+#define HAP_BLE 1
+#endif
+
 #include "HAPPlatform.h"
 
 #if __has_feature(nullability)
@@ -215,7 +223,15 @@ void HAPTLVWriterGetScratchBytes(
 /**
  * HomeKit Accessory server.
  */
-typedef HAP_OPAQUE(2418) HAPAccessoryServerRef;
+#if HAP_BLE && HAP_IP
+typedef HAP_OPAQUE(1912) HAPAccessoryServerRef;
+#elif HAP_IP
+typedef HAP_OPAQUE(1824) HAPAccessoryServerRef;
+#elif HAP_BLE
+typedef HAP_OPAQUE(1800) HAPAccessoryServerRef;
+#else
+#error "At least one of IP or BLE must be enabled at compilation time"
+#endif
 HAP_NONNULL_SUPPORT(HAPAccessoryServerRef)
 
 /**
@@ -3813,7 +3829,7 @@ typedef struct {
      * - Must be at least kHAPPairingStorage_MinElements.
      */
     HAPPlatformKeyValueStoreKey maxPairings;
-
+#if HAP_IP
     /**
      * IP specific initialization options.
      */
@@ -3840,7 +3856,8 @@ typedef struct {
          */
         HAPIPAccessoryServerStorage* _Nullable accessoryServerStorage;
     } ip;
-
+#endif
+#if HAP_BLE
     /**
      * BLE specific initialization options.
      */
@@ -3909,6 +3926,7 @@ typedef struct {
          */
         HAPBLEAdvertisingInterval preferredNotificationDuration;
     } ble;
+#endif
 } HAPAccessoryServerOptions;
 
 /**

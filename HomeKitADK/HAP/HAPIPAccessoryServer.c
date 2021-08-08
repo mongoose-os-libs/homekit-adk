@@ -3824,8 +3824,9 @@ static void engine_init(HAPAccessoryServerRef* server_) {
             &logObject, "Storage configuration: numSessions = %lu", (unsigned long) server->ip.storage->numSessions);
     HAPLogDebug(
             &logObject,
-            "Storage configuration: sessions = %lu",
-            (unsigned long) (server->ip.storage->numSessions * sizeof(HAPIPSession)));
+            "Storage configuration: sessions = %lu (actual %lu)",
+            (unsigned long) (server->ip.storage->numSessions * sizeof(HAPIPSession)),
+            (unsigned long) (server->ip.storage->numSessions * sizeof(HAPIPSessionDescriptor)));
     HAPLogDebug(
             &logObject,
             "Storage configuration: scratchBuffer.numBytes = %lu",

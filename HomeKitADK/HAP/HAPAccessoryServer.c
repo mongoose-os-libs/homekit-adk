@@ -23,10 +23,12 @@ static void CompleteShutdown(HAPAccessoryServerRef* server_) {
 
     // Reset state.
     server->primaryAccessory = NULL;
+#if HAP_IP
     server->ip.bridgedAccessories = NULL;
 
     // Check that everything is cleaned up.
     HAPAssert(!server->ip.discoverableService);
+#endif
 
     // Shutdown complete.
     HAPLogInfo(&logObject, "Accessory server shutdown completed.");
@@ -134,7 +136,6 @@ void HAPAccessoryServerCreate(
         if (platform->authentication.mfiTokenAuth) {
             HAPStringBuilderAppend(&stringBuilder, "\n    - Software Token provider");
         }
-
         if (HAPStringBuilderDidOverflow(&stringBuilder)) {
             HAPLogError(&logObject, "Version information truncated.");
         }
@@ -194,6 +195,7 @@ void HAPAccessoryServerCreate(
     HAP_DIAGNOSTIC_IGNORED_GCC("-Wdeprecated-declarations")
     HAP_DIAGNOSTIC_IGNORED_ARMCC(2570)
     HAP_DIAGNOSTIC_IGNORED_ICCARM(Pe1444)
+#if HAP_IP
     if (options->ip.available) {
         HAPLogFault(
                 &logObject,
@@ -201,6 +203,8 @@ void HAPAccessoryServerCreate(
                 "Set ip.transport to &kHAPAccessoryServerTransport_IP instead.");
         HAPFatalError();
     }
+#endif
+#if HAP_BLE
     if (options->ble.available) {
         HAPLogFault(
                 &logObject,
@@ -208,12 +212,19 @@ void HAPAccessoryServerCreate(
                 "Set ble.transport to &kHAPAccessoryServerTransport_BLE instead.");
         HAPFatalError();
     }
+#endif
     HAP_DIAGNOSTIC_RESTORE_ICCARM(Pe1444)
     HAP_DIAGNOSTIC_POP
 
+#if HAP_IP && HAP_BLE
     // One transport must be supported.
     HAPPrecondition(options->ip.transport || options->ble.transport);
-
+#elif HAP_IP
+    HAPPrecondition(options->ip.transport);
+#else
+    HAPPrecondition(options->ble.transport);
+#endif
+#if HAP_IP
     // Copy IP parameters.
     server->transports.ip = options->ip.transport;
     if (server->transports.ip) {
@@ -221,7 +232,8 @@ void HAPAccessoryServerCreate(
     } else {
         HAPRawBufferZero(&server->platform.ip, sizeof server->platform.ip);
     }
-
+#endif
+#if HAP_BLE
     // Copy Bluetooth LE parameters.
     server->transports.ble = options->ble.transport;
     if (server->transports.ble) {
@@ -229,7 +241,7 @@ void HAPAccessoryServerCreate(
     } else {
         HAPRawBufferZero(&server->platform.ble, sizeof server->platform.ble);
     }
-
+#endif
     // Copy client context.
     server->context = context;
 
@@ -271,6 +283,7 @@ void HAPAccessoryServerRelease(HAPAccessoryServerRef* server_) {
         }
     }
 
+#if HAP_BLE
     if (server->transports.ble) {
         if (server->ble.adv.fast_timer) {
             HAPPlatformTimerDeregister(server->ble.adv.fast_timer);
@@ -281,6 +294,7 @@ void HAPAccessoryServerRelease(HAPAccessoryServerRef* server_) {
             server->ble.adv.timer = 0;
         }
     }
+#endif
 
     HAPMFiHWAuthRelease(&server->mfi);
 
@@ -470,7 +484,9 @@ static void HAPAccessoryServerPrepareStart(
     HAPAccessoryServer* server = (HAPAccessoryServer*) server_;
     HAPPrecondition(server->state == kHAPAccessoryServerState_Idle);
     HAPPrecondition(!server->primaryAccessory);
+#if HAP_IP
     HAPPrecondition(!server->ip.bridgedAccessories);
+#endif
     HAPPrecondition(primaryAccessory);
 
     HAPError err;
@@ -480,12 +496,16 @@ static void HAPAccessoryServerPrepareStart(
     HAPAccessoryServerDelegateScheduleHandleUpdatedState(server_);
 
     // Reset state.
+#if HAP_IP
     if (server->transports.ip) {
         HAPNonnull(server->transports.ip)->prepareStart(server_);
     }
+#endif
+#if HAP_BLE
     if (server->transports.ble) {
         HAPNonnull(server->transports.ble)->prepareStart(server_);
     }
+#endif
 
     // Firmware version check.
     // MongooseOS: disabled, in practice controllers don't care and it's just a nuisance.
@@ -598,7 +618,11 @@ static void HAPAccessoryServerPrepareStart(
     // Register accessory.
     HAPLogDebug(&logObject, "Registering accessories.");
     server->primaryAccessory = primaryAccessory;
+#if HAP_IP
     server->ip.bridgedAccessories = bridgedAccessories;
+#else
+    HAPAssert(!bridgedAccessories);
+#endif
 
     // Load LTSK.
     HAPLogDebug(&logObject, "Loading accessory identity.");
@@ -1019,14 +1043,14 @@ HAPError HAPAccessoryServerCleanupPairings(HAPAccessoryServerRef* server_) {
                 return err;
             }
         }
-
+#if HAP_BLE
         // Purge Pair Resume cache.
         if (server->transports.ble) {
             HAPRawBufferZero(
                     server->ble.storage->sessionCacheElements,
                     server->ble.storage->numSessionCacheElements * sizeof *server->ble.storage->sessionCacheElements);
         }
-
+#endif
         // Purge broadcast encryption key and advertising identifier.
         // See HomeKit Certification Test Cases R7.2
         // Test Case TCB052
@@ -1540,6 +1564,7 @@ size_t HAPAccessoryServerGetNumServiceInstances(HAPAccessoryServerRef* server_, 
             }
         }
     }
+#if HAP_IP
     if (server->ip.bridgedAccessories) {
         for (size_t j = 0; server->ip.bridgedAccessories[j]; j++) {
             const HAPAccessory* acc = server->ip.bridgedAccessories[j];
@@ -1554,6 +1579,7 @@ size_t HAPAccessoryServerGetNumServiceInstances(HAPAccessoryServerRef* server_, 
             }
         }
     }
+#endif
 
     return serviceTypeIndex;
 }
@@ -1586,6 +1612,7 @@ HAPServiceTypeIndex HAPAccessoryServerGetServiceTypeIndex(
             }
         }
     }
+#if HAP_IP
     if (server->ip.bridgedAccessories) {
         for (size_t j = 0; server->ip.bridgedAccessories[j]; j++) {
             const HAPAccessory* acc = server->ip.bridgedAccessories[j];
@@ -1603,6 +1630,7 @@ HAPServiceTypeIndex HAPAccessoryServerGetServiceTypeIndex(
             }
         }
     }
+#endif
 
     HAPLogServiceError(&logObject, service, accessory, "Service not found in accessory server's attribute database.");
     HAPFatalError();
@@ -1637,6 +1665,7 @@ void HAPAccessoryServerGetServiceFromServiceTypeIndex(
             }
         }
     }
+#if HAP_IP
     if (server->ip.bridgedAccessories) {
         for (size_t j = 0; server->ip.bridgedAccessories[j]; j++) {
             const HAPAccessory* acc = server->ip.bridgedAccessories[j];
@@ -1655,6 +1684,7 @@ void HAPAccessoryServerGetServiceFromServiceTypeIndex(
             }
         }
     }
+#endif
 
     HAPLogError(&logObject, "Service type index not found in accessory server's attribute database.");
     HAPFatalError();
@@ -1671,7 +1701,7 @@ void HAPAccessoryServerEnumerateConnectedSessions(
     HAPPrecondition(callback);
 
     bool shouldContinue = true;
-
+#if HAP_BLE
     if (server->transports.ble && server->ble.storage) {
         if (server->ble.storage->session && server->ble.connection.connected) {
             callback(context, server_, HAPNonnull(server->ble.storage->session), &shouldContinue);
@@ -1680,7 +1710,8 @@ void HAPAccessoryServerEnumerateConnectedSessions(
             return;
         }
     }
-
+#endif
+#if HAP_IP
     if (server->transports.ip && server->ip.storage) {
         for (size_t i = 0; shouldContinue && i < server->ip.storage->numSessions; i++) {
             HAPIPSession* ipSession = &server->ip.storage->sessions[i];
@@ -1698,4 +1729,5 @@ void HAPAccessoryServerEnumerateConnectedSessions(
             return;
         }
     }
+#endif
 }
