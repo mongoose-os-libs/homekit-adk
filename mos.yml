@@ -55,10 +55,10 @@ conds:
 cdefs:
   HAP_VERSION: '\"1.0.1\"'
   HAP_IDENTIFICATION: '\"https://github.com/mongoose-os-libs/homekit-adk\"'
-  # These save quite a bit of space.
-  # App can override back to 0 if needed.
-  HAP_DISABLE_ASSERTS: 1
-  HAP_DISABLE_PRECONDITIONS: 1
+  # Tips for saving space:
+  #HAP_LOG_LEVEL: 0
+  #HAP_DISABLE_ASSERTS: 1
+  #HAP_DISABLE_PRECONDITIONS: 1
 
 tags:
   - c
