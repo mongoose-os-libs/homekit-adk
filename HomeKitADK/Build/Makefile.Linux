@@ -5,10 +5,10 @@ COMPILER := $(shell $(CC) --version | grep "Target:" | cut -d ' ' -f 2)
 DEBUGGER := gdb
 
 SRC_DIRS_Linux := PAL/Linux
-CRYPTO_Linux := PAL/Crypto/OpenSSL
+CRYPTO_Linux := PAL/Crypto/MbedTLS
 
-CFLAGS_Linux := $(CFLAGS_IP) -ffunction-sections -fdata-sections
-LDFLAGS_Linux := -ldns_sd -pthread -lm
+CFLAGS_Linux := $(CFLAGS_IP) -ffunction-sections -fdata-sections -Imbedtls/include
+LDFLAGS_Linux := -ldns_sd -pthread -lm -Lmbedtls/library
 ifeq ($(BUILD_TYPE),Release)
     LDFLAGS_Linux += -Wl,--gc-sections -Wl,--as-needed -Wl,--strip-all
 else
