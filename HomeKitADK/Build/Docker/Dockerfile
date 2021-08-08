@@ -18,6 +18,6 @@ RUN echo ========== Install dependencies ========== \
     openssh-server \
   && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get install -y gdb
+#RUN apt-get install -y gdb
 
 WORKDIR /build
