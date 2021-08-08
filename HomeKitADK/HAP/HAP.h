@@ -18,6 +18,9 @@ extern "C" {
 #ifndef HAP_BLE
 #define HAP_BLE 1
 #endif
+#if !HAP_IP && !HAP_BLE
+#error "At least one of IP or BLE must be enabled at compilation time"
+#endif
 
 #include "HAPPlatform.h"
 
@@ -223,21 +226,19 @@ void HAPTLVWriterGetScratchBytes(
 /**
  * HomeKit Accessory server.
  */
-#if HAP_BLE && HAP_IP
-typedef HAP_OPAQUE(1912) HAPAccessoryServerRef;
-#elif HAP_IP
-typedef HAP_OPAQUE(1824) HAPAccessoryServerRef;
-#elif HAP_BLE
-typedef HAP_OPAQUE(1800) HAPAccessoryServerRef;
-#else
-#error "At least one of IP or BLE must be enabled at compilation time"
+#ifndef HAP_ACCESSORY_SERVER_SIZE
+#define HAP_ACCESSORY_SERVER_SIZE 1912
 #endif
+typedef HAP_OPAQUE(HAP_ACCESSORY_SERVER_SIZE) HAPAccessoryServerRef;
 HAP_NONNULL_SUPPORT(HAPAccessoryServerRef)
 
 /**
  * HomeKit Session.
  */
-typedef HAP_OPAQUE(488) HAPSessionRef;
+#ifndef HAP_SESSION_SIZE
+#define HAP_SESSION_SIZE 488
+#endif
+typedef HAP_OPAQUE(HAP_SESSION_SIZE) HAPSessionRef;
 HAP_NONNULL_SUPPORT(HAPSessionRef)
 
 /**
@@ -3594,7 +3595,10 @@ typedef HAP_OPAQUE(64) HAPIPWriteContextRef;
 /**
  * IP session descriptor.
  */
-typedef HAP_OPAQUE(832) HAPIPSessionDescriptorRef;
+#ifndef HAP_IP_SESSION_SIZE
+#define HAP_IP_SESSION_SIZE 832
+#endif
+typedef HAP_OPAQUE(HAP_IP_SESSION_SIZE) HAPIPSessionDescriptorRef;
 
 /**
  * IP event notification.
