@@ -139,6 +139,8 @@ typedef struct {
 
         bool flagsPresent : 1;  /**< Whether Pairing Type flags were present in Pair Setup M1. */
         bool keepSetupInfo : 1; /**< Whether setup info should be kept on disconnect. */
+
+        uint8_t srpPMSStage;
     } pairSetup;
 
     /**
@@ -188,6 +190,9 @@ typedef struct {
 
         /** Timer that on expiry runs the garbage task. */
         HAPPlatformTimerRef garbageCollectionTimer;
+
+        /** Timer that fires to move processing of an expensive request forward. */
+        HAPPlatformTimerRef processTimer;
 
         /** Timer that on expiry schedules a maximum idle time check. */
         HAPPlatformTimerRef maxIdleTimeTimer;

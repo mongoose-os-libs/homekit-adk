@@ -295,7 +295,9 @@ HAPError HAPSessionHandlePairSetupRead(
     bool wasPaired = HAPAccessoryServerIsPaired(server_);
     err = HAPPairingPairSetupHandleRead(server_, session_, responseWriter);
     if (err) {
-        HAPAssert(err == kHAPError_InvalidState || err == kHAPError_Unknown || err == kHAPError_OutOfResources);
+        HAPAssert(
+                err == kHAPError_InvalidState || err == kHAPError_Unknown || err == kHAPError_OutOfResources ||
+                err == kHAPError_Busy);
         return err;
     }
     bool isPaired = HAPAccessoryServerIsPaired(server_);

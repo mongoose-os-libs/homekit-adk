@@ -2147,15 +2147,20 @@ static void handle_pairing_data(
     if (session->httpContentLength.isDefined) {
         HAPAssert(session->httpContentLength.value <= session->inboundBuffer.position - session->httpReaderPosition);
         if (session->httpContentLength.value <= maxScratchBufferBytes) {
-            HAPRawBufferCopyBytes(
-                    scratchBuffer,
-                    &session->inboundBuffer.data[session->httpReaderPosition],
-                    session->httpContentLength.value);
-            tlv8_reader_init.bytes = scratchBuffer;
-            tlv8_reader_init.numBytes = session->httpContentLength.value;
-            tlv8_reader_init.maxBytes = maxScratchBufferBytes;
-            HAPTLVReaderCreateWithOptions(&tlv8_reader, &tlv8_reader_init);
-            r = write_hap_pairing_data(HAPNonnull(session->server), &session->securitySession._.hap, &tlv8_reader);
+            // Skip writing phase if we are still processing the previous request.
+            if (session->state != kHAPIPSessionState_Processing) {
+                HAPRawBufferCopyBytes(
+                        scratchBuffer,
+                        &session->inboundBuffer.data[session->httpReaderPosition],
+                        session->httpContentLength.value);
+                tlv8_reader_init.bytes = scratchBuffer;
+                tlv8_reader_init.numBytes = session->httpContentLength.value;
+                tlv8_reader_init.maxBytes = maxScratchBufferBytes;
+                HAPTLVReaderCreateWithOptions(&tlv8_reader, &tlv8_reader_init);
+                r = write_hap_pairing_data(HAPNonnull(session->server), &session->securitySession._.hap, &tlv8_reader);
+            } else {
+                r = 0;
+            }
             if (r == 0) {
                 HAPTLVWriterCreate(&tlv8_writer, scratchBuffer, maxScratchBufferBytes);
                 r = read_hap_pairing_data(HAPNonnull(session->server), &session->securitySession._.hap, &tlv8_writer);
@@ -2211,6 +2216,9 @@ static void handle_pairing_data(
                         session->outboundBuffer.position = mark;
                         write_msg(&session->outboundBuffer, kHAPIPAccessoryServerResponse_OutOfResources);
                     }
+                } else if (r == kHAPError_Busy) {
+                    HAPLogDebug(&logObject, "processing...");
+                    session->state = kHAPIPSessionState_Processing;
                 } else {
                     log_result(
                             kHAPLogType_Error,
@@ -2220,6 +2228,11 @@ static void handle_pairing_data(
                             HAP_FILE,
                             __LINE__);
                     write_msg(&session->outboundBuffer, kHAPIPAccessoryServerResponse_InternalServerError);
+                }
+                if (r != kHAPError_Busy && session->state == kHAPIPSessionState_Processing) {
+                    // Response is ready.
+                    HAPLogDebug(&logObject, "done");
+                    session->state = kHAPIPSessionState_Writing;
                 }
             } else {
                 write_msg(&session->outboundBuffer, kHAPIPAccessoryServerResponse_BadRequest);
@@ -2902,14 +2915,17 @@ static void handle_http(HAPIPSessionDescriptor* session) {
                 (const void*) session,
                 (long) requestLen);
         handle_http_request(session);
-        HAPIPByteBuffer* b = &session->inboundBuffer;
-        HAPIPByteBufferShiftLeft(b, requestLen);
+        if (session->state != kHAPIPSessionState_Processing) {
+            HAPIPByteBufferShiftLeft(&session->inboundBuffer, requestLen);
+        }
         if (session->accessorySerializationIsInProgress) {
             // Session is already prepared for writing
             HAPAssert(session->outboundBuffer.data || session->outboundBuffer.isDynamic);
             HAPAssert(session->outboundBuffer.position <= session->outboundBuffer.limit);
             HAPAssert(session->outboundBuffer.limit <= session->outboundBuffer.capacity);
             HAPAssert(session->state == kHAPIPSessionState_Writing);
+        } else if (session->state == kHAPIPSessionState_Processing) {
+            // Needs more time to prepare a response.
         } else {
             HAPAssert(session->outboundBuffer.data || session->outboundBuffer.isDynamic);
             HAPAssert(session->outboundBuffer.position <= session->outboundBuffer.limit);
@@ -3241,8 +3257,11 @@ static void handle_input(HAPIPSessionDescriptor* session) {
                 handle_http(session);
             }
             session->inboundBufferMark = session->inboundBuffer.position;
-            session->inboundBuffer.position = session->inboundBuffer.limit;
-            session->inboundBuffer.limit = session->inboundBuffer.capacity;
+            if (session->state != kHAPIPSessionState_Processing) {
+                session->inboundBuffer.position = session->inboundBuffer.limit;
+                session->inboundBuffer.limit = session->inboundBuffer.capacity;
+            }
+
             if ((session->state == kHAPIPSessionState_Reading) &&
                 (session->inboundBuffer.position == session->inboundBuffer.limit)) {
                 log_protocol_error(
@@ -3443,11 +3462,48 @@ static void write_event_notifications(HAPIPSessionDescriptor* session) {
     }
 }
 
+static void handle_io_progression(HAPIPSessionDescriptor* session);
+
+static void handle_server_process_timer(HAPPlatformTimerRef timer, void* _Nullable context) {
+    HAPPrecondition(context);
+    HAPAccessoryServerRef* server_ = context;
+    HAPAccessoryServer* server = (HAPAccessoryServer*) server_;
+    (void) server;
+    HAPPrecondition(timer == server->ip.processTimer);
+    server->ip.processTimer = 0;
+
+    if (server->ip.state != kHAPIPAccessoryServerState_Running) {
+        return;
+    }
+
+    for (size_t i = 0; i < server->ip.storage->numSessions; i++) {
+        HAPIPSession* ipSession = &server->ip.storage->sessions[i];
+        HAPIPSessionDescriptor* session = (HAPIPSessionDescriptor*) &ipSession->descriptor;
+        if (!session->server || session->state != kHAPIPSessionState_Processing) {
+            continue;
+        }
+
+        HAPLogDebug(&logObject, "Re-processing session %p...", session);
+        handle_input(session);
+        handle_io_progression(session);
+    }
+}
+
 static void handle_io_progression(HAPIPSessionDescriptor* session) {
     HAPPrecondition(session);
     HAPPrecondition(session->server);
     HAPAccessoryServer* server = (HAPAccessoryServer*) session->server;
 
+    if (session->state == kHAPIPSessionState_Processing) {
+        if (server->ip.processTimer == 0) {
+            HAPError err = HAPPlatformTimerRegister(
+                    &server->ip.processTimer, HAPPlatformClockGetCurrent() + 150, handle_server_process_timer, server);
+            if (err) {
+                HAPLog(&logObject, "Not enough resources to schedule processing timer!");
+                HAPFatalError();
+            }
+        }
+    }
     if ((session->state == kHAPIPSessionState_Reading) && (session->inboundBuffer.position == 0)) {
         if (server->ip.state == kHAPIPAccessoryServerState_Stopping) {
             CloseSession(session);

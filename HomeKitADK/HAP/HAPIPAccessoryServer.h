@@ -122,6 +122,9 @@ HAP_ENUM_BEGIN(uint8_t, HAPIPSessionState) { /** Accessory server session is idl
                                              /** Accessory server session is reading. */
                                              kHAPIPSessionState_Reading,
 
+                                             /** Accessory server session is processing. */
+                                             kHAPIPSessionState_Processing,
+
                                              /** Accessory server session is writing. */
                                              kHAPIPSessionState_Writing
 } HAP_ENUM_END(uint8_t, HAPIPSessionState);

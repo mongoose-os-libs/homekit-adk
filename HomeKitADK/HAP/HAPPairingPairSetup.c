@@ -425,6 +425,7 @@ static HAPError HAPPairingPairSetupProcessM3(
  * @return kHAPError_Unknown        If communication with Apple Auth Coprocessor or persistent store access failed.
  * @return kHAPError_InvalidState   If a different request is expected in the current state.
  * @return kHAPError_OutOfResources If response writer does not have enough capacity.
+ * @return kHAPError_Busy           If response is not yet ready, invoke again with the same arguments.
  */
 HAP_RESULT_USE_CHECK
 static HAPError HAPPairingPairSetupGetM4(
@@ -436,7 +437,7 @@ static HAPError HAPPairingPairSetupGetM4(
     HAPPrecondition(server->pairSetup.sessionThatIsCurrentlyPairing == session_);
     HAPPrecondition(session_);
     HAPSession* session = (HAPSession*) session_;
-    HAPPrecondition(session->state.pairSetup.state == 4);
+    // HAPPrecondition(session->state.pairSetup.state == 4);
     HAPPrecondition(!session->state.pairSetup.error);
     HAPPrecondition(responseWriter);
 
@@ -471,10 +472,23 @@ static HAPError HAPPairingPairSetupGetM4(
         }
         HAPSetupInfo* _Nullable setupInfo = HAPAccessorySetupInfoGetSetupInfo(server_, restorePrevious);
         HAPAssert(setupInfo);
-
-        int e = HAP_srp_premaster_secret(S, server->pairSetup.A, server->pairSetup.b, u, setupInfo->verifier);
+        /*
+         * S is used to hold SRP PMS generation state between stages it is located in scratch space
+         * and we make use of the fact that scratch buffer is not touched during pairing,
+         * there are no other requests and so exact same location is used during all PMS stages.
+         * This is a valid assumption as long as there is no other activity possible while pairing is ongoing,
+         * which is true, since there can be no other sessions until device is paired to a controller.
+         */
+        int ss = server->pairSetup.srpPMSStage;
+        int e = HAP_srp_premaster_secret_stage(
+                S, server->pairSetup.A, server->pairSetup.b, u, setupInfo->verifier, &server->pairSetup.srpPMSStage);
         if (e) {
-            HAPAssert(e == 1);
+            HAPAssert(e == 1 || e == 2 || e == HAP_SRP_PREMASTER_SECRET_NEED_MORE);
+            if (e == HAP_SRP_PREMASTER_SECRET_NEED_MORE) {
+                HAPLogDebug(&logObject, "SRP PMS stage %d", server->pairSetup.srpPMSStage);
+                (void) ss;
+                return kHAPError_Busy;
+            }
             // Illegal key A.
             HAPLog(&logObject, "Pair Setup M4: Illegal key A.");
             session->state.pairSetup.error = kHAPPairingError_Authentication;
@@ -574,10 +588,10 @@ static HAPError HAPPairingPairSetupGetM4(
     }
 
     // kTLVType_State.
+    uint8_t four = 4;
     err = HAPTLVWriterAppend(
             responseWriter,
-            &(const HAPTLV) { .type = kHAPPairingTLVType_State,
-                              .value = { .bytes = &session->state.pairSetup.state, .numBytes = 1 } });
+            &(const HAPTLV) { .type = kHAPPairingTLVType_State, .value = { .bytes = &four, .numBytes = 1 } });
     if (err) {
         HAPAssert(err == kHAPError_OutOfResources);
         return err;
@@ -1412,10 +1426,16 @@ HAPError HAPPairingPairSetupHandleRead(
             }
         } break;
         case 3: {
-            session->state.pairSetup.state++;
             err = HAPPairingPairSetupGetM4(server, session_, responseWriter);
+            HAPLogDebug(&logObject, "err = %d", err);
             if (err) {
-                HAPAssert(err == kHAPError_Unknown || err == kHAPError_InvalidState || err == kHAPError_OutOfResources);
+                HAPAssert(
+                        err == kHAPError_Unknown || err == kHAPError_InvalidState || err == kHAPError_OutOfResources ||
+                        kHAPError_Busy);
+                if (err == kHAPError_Busy)
+                    return err;
+            } else {
+                session->state.pairSetup.state++;
             }
         } break;
         case 5: {
