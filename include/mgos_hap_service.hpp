@@ -26,47 +26,47 @@
 namespace mgos {
 namespace hap {
 
-    class Accessory;
+class Accessory;
 
-    class Service {
-    public:
-        Service();
-        Service(uint16_t iid, const HAPUUID* type, const char* debug_description, bool hidden = false);
-        virtual ~Service();
+class Service {
+public:
+    Service();
+    Service(uint16_t iid, const HAPUUID* type, const char* debug_description, bool hidden = false);
+    virtual ~Service();
 
-        uint16_t iid() const;
+    uint16_t iid() const;
 
-        bool primary() const;
-        void set_primary(bool is_primary);
+    bool primary() const;
+    void set_primary(bool is_primary);
 
-        const Accessory* parent() const;
-        void set_parent(const Accessory* parent);
+    const Accessory* parent() const;
+    void set_parent(const Accessory* parent);
 
-        void AddChar(Characteristic* ch); // Takes ownership of ch.
+    void AddChar(Characteristic* ch); // Takes ownership of ch.
 
-        void AddNameChar(uint16_t iid, const std::string& name);
+    void AddNameChar(uint16_t iid, const std::string& name);
 
-        void AddLink(uint16_t iid);
+    void AddLink(uint16_t iid);
 
-        const HAPService* GetHAPService() const;
+    const HAPService* GetHAPService() const;
 
-    protected:
-        HAPService svc_;
-        std::vector<std::unique_ptr<Characteristic>> chars_;
-        std::vector<const HAPCharacteristic*> hap_chars_;
-        std::vector<uint16_t> links_;
+protected:
+    HAPService svc_;
+    std::vector<std::unique_ptr<Characteristic>> chars_;
+    std::vector<const HAPCharacteristic*> hap_chars_;
+    std::vector<uint16_t> links_;
 
-    private:
-        const Accessory* parent_ = nullptr;
+private:
+    const Accessory* parent_ = nullptr;
 
-        Service(const Service& other) = delete;
-    };
+    Service(const Service& other) = delete;
+};
 
-    class ServiceLabelService : public Service {
-    public:
-        explicit ServiceLabelService(uint8_t ns);
-        virtual ~ServiceLabelService();
-    };
+class ServiceLabelService : public Service {
+public:
+    explicit ServiceLabelService(uint8_t ns);
+    virtual ~ServiceLabelService();
+};
 
 } // namespace hap
 } // namespace mgos

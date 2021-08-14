@@ -35,3 +35,5 @@ SortIncludes: false
 SpaceAfterCStyleCast: true
 SpacesBeforeTrailingComments: 1
 SpacesInContainerLiterals: false
+
+NamespaceIndentation: None

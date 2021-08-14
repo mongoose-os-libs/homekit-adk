@@ -20,93 +20,93 @@
 namespace mgos {
 namespace hap {
 
-    Service::Service()
-        : svc_({}) {
-    }
+Service::Service()
+    : svc_({}) {
+}
 
-    Service::Service(uint16_t iid, const HAPUUID* type, const char* debug_description, bool hidden)
-        : svc_({}) {
-        svc_.iid = iid;
-        svc_.serviceType = type;
-        svc_.debugDescription = debug_description;
-        svc_.properties.hidden = hidden;
-    }
+Service::Service(uint16_t iid, const HAPUUID* type, const char* debug_description, bool hidden)
+    : svc_({}) {
+    svc_.iid = iid;
+    svc_.serviceType = type;
+    svc_.debugDescription = debug_description;
+    svc_.properties.hidden = hidden;
+}
 
-    Service::~Service() {
-    }
+Service::~Service() {
+}
 
-    uint16_t Service::iid() const {
-        return svc_.iid;
-    }
+uint16_t Service::iid() const {
+    return svc_.iid;
+}
 
-    bool Service::primary() const {
-        return svc_.properties.primaryService;
-    }
+bool Service::primary() const {
+    return svc_.properties.primaryService;
+}
 
-    void Service::set_primary(bool is_primary) {
-        svc_.properties.primaryService = is_primary;
-    }
+void Service::set_primary(bool is_primary) {
+    svc_.properties.primaryService = is_primary;
+}
 
-    const Accessory* Service::parent() const {
-        return parent_;
-    }
+const Accessory* Service::parent() const {
+    return parent_;
+}
 
-    void Service::set_parent(const Accessory* parent) {
-        parent_ = parent;
-    }
+void Service::set_parent(const Accessory* parent) {
+    parent_ = parent;
+}
 
-    void Service::AddChar(Characteristic* c) {
-        c->set_parent(this);
-        chars_.emplace_back(c);
-        if (!hap_chars_.empty())
-            hap_chars_.pop_back();
-        hap_chars_.push_back(c->GetHAPCharacteristic());
-        hap_chars_.push_back(nullptr);
-        svc_.characteristics = hap_chars_.data();
-    }
+void Service::AddChar(Characteristic* c) {
+    c->set_parent(this);
+    chars_.emplace_back(c);
+    if (!hap_chars_.empty())
+        hap_chars_.pop_back();
+    hap_chars_.push_back(c->GetHAPCharacteristic());
+    hap_chars_.push_back(nullptr);
+    svc_.characteristics = hap_chars_.data();
+}
 
-    void Service::AddNameChar(uint16_t iid, const std::string& name) {
-        auto* c = new StringCharacteristic(
-                iid, &kHAPCharacteristicType_Name, 64, name, kHAPCharacteristicDebugDescription_Name);
-        svc_.name = c->value().c_str();
-        AddChar(c);
-    }
+void Service::AddNameChar(uint16_t iid, const std::string& name) {
+    auto* c = new StringCharacteristic(
+            iid, &kHAPCharacteristicType_Name, 64, name, kHAPCharacteristicDebugDescription_Name);
+    svc_.name = c->value().c_str();
+    AddChar(c);
+}
 
-    void Service::AddLink(uint16_t iid) {
-        if (iid == 0)
-            return;
-        if (links_.size() > 0)
-            links_.pop_back();
-        links_.push_back(iid);
-        links_.push_back(0);
-        svc_.linkedServices = links_.data();
-    }
+void Service::AddLink(uint16_t iid) {
+    if (iid == 0)
+        return;
+    if (links_.size() > 0)
+        links_.pop_back();
+    links_.push_back(iid);
+    links_.push_back(0);
+    svc_.linkedServices = links_.data();
+}
 
-    const HAPService* Service::GetHAPService() const {
-        if (svc_.iid == 0)
-            return nullptr;
-        return &svc_;
-    }
+const HAPService* Service::GetHAPService() const {
+    if (svc_.iid == 0)
+        return nullptr;
+    return &svc_;
+}
 
-    ServiceLabelService::ServiceLabelService(uint8_t ns)
-        : Service(0x1030, &kHAPServiceType_ServiceLabel, kHAPServiceDebugDescription_ServiceLabel) {
-        AddChar(new UInt8Characteristic(
-                svc_.iid + 1,
-                &kHAPCharacteristicType_ServiceLabelNamespace,
-                0,
-                1,
-                1,
-                [ns](HAPAccessoryServerRef*, const HAPUInt8CharacteristicReadRequest*, uint8_t* value) {
-                    *value = ns;
-                    return kHAPError_None;
-                },
-                false /* supports_notification */,
-                nullptr /* write_handler */,
-                kHAPCharacteristicDebugDescription_ServiceLabelNamespace));
-    }
+ServiceLabelService::ServiceLabelService(uint8_t ns)
+    : Service(0x1030, &kHAPServiceType_ServiceLabel, kHAPServiceDebugDescription_ServiceLabel) {
+    AddChar(new UInt8Characteristic(
+            svc_.iid + 1,
+            &kHAPCharacteristicType_ServiceLabelNamespace,
+            0,
+            1,
+            1,
+            [ns](HAPAccessoryServerRef*, const HAPUInt8CharacteristicReadRequest*, uint8_t* value) {
+                *value = ns;
+                return kHAPError_None;
+            },
+            false /* supports_notification */,
+            nullptr /* write_handler */,
+            kHAPCharacteristicDebugDescription_ServiceLabelNamespace));
+}
 
-    ServiceLabelService::~ServiceLabelService() {
-    }
+ServiceLabelService::~ServiceLabelService() {
+}
 
 } // namespace hap
 } // namespace mgos

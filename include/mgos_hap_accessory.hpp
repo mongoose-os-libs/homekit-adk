@@ -25,51 +25,50 @@
 namespace mgos {
 namespace hap {
 
-    class Accessory {
-    public:
-        typedef std::function<HAPError(const HAPAccessoryIdentifyRequest* req)> IdentifyCB;
+class Accessory {
+public:
+    typedef std::function<HAPError(const HAPAccessoryIdentifyRequest* req)> IdentifyCB;
 
-        Accessory(
-                uint64_t aid,
-                HAPAccessoryCategory category,
-                const std::string& name,
-                const IdentifyCB& identify_cb,
-                HAPAccessoryServerRef* server = nullptr,
-                const std::string& serial_number = "");
-        virtual ~Accessory();
+    Accessory(
+            uint64_t aid,
+            HAPAccessoryCategory category,
+            const std::string& name,
+            const IdentifyCB& identify_cb,
+            HAPAccessoryServerRef* server = nullptr,
+            const std::string& serial_number = "");
+    virtual ~Accessory();
 
-        HAPAccessoryServerRef* server() const;
-        void set_server(HAPAccessoryServerRef* server);
+    HAPAccessoryServerRef* server() const;
+    void set_server(HAPAccessoryServerRef* server);
 
-        void SetName(const std::string& name);
-        void SetCategory(HAPAccessoryCategory category);
-        void SetSerialNumber(const std::string& sn);
+    void SetName(const std::string& name);
+    void SetCategory(HAPAccessoryCategory category);
+    void SetSerialNumber(const std::string& sn);
 
-        void AddService(Service* svc);
-        void AddService(std::unique_ptr<Service> svc);
-        void AddHAPService(const HAPService* svc);
+    void AddService(Service* svc);
+    void AddService(std::unique_ptr<Service> svc);
+    void AddHAPService(const HAPService* svc);
 
-        const HAPAccessory* GetHAPAccessory() const;
+    const HAPAccessory* GetHAPAccessory() const;
 
-    private:
-        static HAPError
-                Identify(HAPAccessoryServerRef* server, const HAPAccessoryIdentifyRequest* request, void* context);
+private:
+    static HAPError Identify(HAPAccessoryServerRef* server, const HAPAccessoryIdentifyRequest* request, void* context);
 
-        std::string name_;
-        const IdentifyCB identify_cb_;
-        HAPAccessoryServerRef* server_;
-        std::string serial_number_;
+    std::string name_;
+    const IdentifyCB identify_cb_;
+    HAPAccessoryServerRef* server_;
+    std::string serial_number_;
 
-        struct HAPAccessoryWithInstance {
-            HAPAccessory acc;
-            Accessory* inst;
-        } hai_;
+    struct HAPAccessoryWithInstance {
+        HAPAccessory acc;
+        Accessory* inst;
+    } hai_;
 
-        std::vector<std::unique_ptr<Service>> svcs_;
-        std::vector<const HAPService*> hap_svcs_;
+    std::vector<std::unique_ptr<Service>> svcs_;
+    std::vector<const HAPService*> hap_svcs_;
 
-        Accessory(const Accessory& other) = delete;
-    };
+    Accessory(const Accessory& other) = delete;
+};
 
 } // namespace hap
 } // namespace mgos
