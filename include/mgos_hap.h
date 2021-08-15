@@ -115,6 +115,7 @@ void mgos_hap_add_rpc_service(HAPAccessoryServerRef* _Nonnull server, const HAPA
 // More complicated variant.
 void mgos_hap_add_rpc_service_cb(
         HAPAccessoryServerRef* _Nonnull server,
+        void(server_stop_cb)(HAPAccessoryServerRef* _Nonnull server),
         void(server_start_cb)(HAPAccessoryServerRef* _Nonnull server));
 #endif
 #endif // MGOS_HAP_SIMPLE_CONFIG

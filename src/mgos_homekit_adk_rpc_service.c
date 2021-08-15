@@ -28,6 +28,7 @@
 
 static const HAPAccessory* s_acc = NULL;
 static HAPAccessoryServerRef* s_server = NULL;
+static void (*s_stop_cb)(HAPAccessoryServerRef* _Nonnull server) = NULL;
 static void (*s_start_cb)(HAPAccessoryServerRef* _Nonnull server) = NULL;
 HAPSetupID g_hap_setup_id;
 
@@ -201,7 +202,7 @@ static void stop_and_reset(void* arg) {
         case kHAPAccessoryServerState_Running:
             ctx->stopped_server = true;
             LOG(LL_INFO, ("Stopping server for reset"));
-            HAPAccessoryServerStop(s_server);
+            s_stop_cb(s_server);
             // fallthrough
         case kHAPAccessoryServerState_Stopping:
             // Wait some more.
@@ -276,19 +277,25 @@ static void mgos_hap_reset_handler(
     (void) fi;
 }
 
+static void simple_stop_cb(HAPAccessoryServerRef* _Nonnull server) {
+    HAPAccessoryServerStop(server);
+}
+
 static void simple_start_cb(HAPAccessoryServerRef* _Nonnull server) {
     HAPAccessoryServerStart(server, s_acc);
 }
 
 void mgos_hap_add_rpc_service(HAPAccessoryServerRef* server, const HAPAccessory* _Nonnull acc) {
     s_acc = acc;
-    mgos_hap_add_rpc_service_cb(server, simple_start_cb);
+    mgos_hap_add_rpc_service_cb(server, simple_stop_cb, simple_start_cb);
 }
 
 void mgos_hap_add_rpc_service_cb(
         HAPAccessoryServerRef* _Nonnull server,
+        void(server_stop_cb)(HAPAccessoryServerRef* _Nonnull server),
         void(server_start_cb)(HAPAccessoryServerRef* _Nonnull server)) {
     s_server = server;
+    s_stop_cb = server_stop_cb;
     s_start_cb = server_start_cb;
     mg_rpc_add_handler(
             mgos_rpc_get_global(),
