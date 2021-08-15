@@ -22,7 +22,7 @@ typedef struct {
     HAP_RESULT_USE_CHECK
     HAPError (*deinit)(HAPAccessoryServerRef* p_srv);
     HAP_RESULT_USE_CHECK
-    HAPAccessoryServerState (*get_state)(HAPAccessoryServerRef* p_srv);
+    HAPAccessoryServerState (*get_state)(const HAPAccessoryServerRef* p_srv);
     void (*start)(HAPAccessoryServerRef* p_srv);
     HAP_RESULT_USE_CHECK
     HAPError (*stop)(HAPAccessoryServerRef* p_srv);

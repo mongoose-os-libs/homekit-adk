@@ -306,9 +306,9 @@ void HAPAccessoryServerRelease(HAPAccessoryServerRef* server_) {
 }
 
 HAP_RESULT_USE_CHECK
-HAPAccessoryServerState HAPAccessoryServerGetState(HAPAccessoryServerRef* server_) {
+HAPAccessoryServerState HAPAccessoryServerGetState(const HAPAccessoryServerRef* server_) {
     HAPPrecondition(server_);
-    HAPAccessoryServer* server = (HAPAccessoryServer*) server_;
+    const HAPAccessoryServer* server = (const HAPAccessoryServer*) server_;
 
     if (server->transports.ip) {
         const HAPAccessoryServerServerEngine* _Nullable serverEngine =
@@ -820,7 +820,7 @@ static HAPError PairingExistsEnumerateCallback(
 }
 
 HAP_RESULT_USE_CHECK
-bool HAPAccessoryServerIsPaired(HAPAccessoryServerRef* server_) {
+bool HAPAccessoryServerIsPaired(const HAPAccessoryServerRef* server_) {
     HAPPrecondition(server_);
     const HAPAccessoryServer* server = (const HAPAccessoryServer*) server_;
 

@@ -4108,7 +4108,7 @@ HAP_ENUM_BEGIN(uint8_t, HAPAccessoryServerState) { /** Server is initialized but
  * @return Accessory server state.
  */
 HAP_RESULT_USE_CHECK
-HAPAccessoryServerState HAPAccessoryServerGetState(HAPAccessoryServerRef* server);
+HAPAccessoryServerState HAPAccessoryServerGetState(const HAPAccessoryServerRef* server);
 
 /**
  * Returns whether the HomeKit accessory server is paired with any controllers.
@@ -4118,7 +4118,7 @@ HAPAccessoryServerState HAPAccessoryServerGetState(HAPAccessoryServerRef* server
  * @return Whether the accessory server is paired with any controllers.
  */
 HAP_RESULT_USE_CHECK
-bool HAPAccessoryServerIsPaired(HAPAccessoryServerRef* server);
+bool HAPAccessoryServerIsPaired(const HAPAccessoryServerRef* server);
 
 /**
  * Starts the accessory server.

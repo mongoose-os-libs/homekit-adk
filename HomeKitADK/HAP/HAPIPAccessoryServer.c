@@ -3861,9 +3861,9 @@ static HAPError engine_deinit(HAPAccessoryServerRef* server_) {
 }
 
 HAP_RESULT_USE_CHECK
-static HAPAccessoryServerState engine_get_state(HAPAccessoryServerRef* server_) {
+static HAPAccessoryServerState engine_get_state(const HAPAccessoryServerRef* server_) {
     HAPPrecondition(server_);
-    HAPAccessoryServer* server = (HAPAccessoryServer*) server_;
+    const HAPAccessoryServer* server = (const HAPAccessoryServer*) server_;
 
     switch (server->ip.state) {
         case kHAPIPAccessoryServerState_Undefined: {
