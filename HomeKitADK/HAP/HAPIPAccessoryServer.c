@@ -3298,7 +3298,6 @@ static void write_event_notifications(HAPIPSessionDescriptor* session) {
     HAPPrecondition(session->inboundBuffer.position == 0);
     HAPPrecondition(session->numEventNotificationFlags > 0);
     HAPPrecondition(session->numEventNotificationFlags <= session->numEventNotifications);
-    HAPPrecondition(session->numEventNotifications <= session->maxEventNotifications);
 
     HAPError err;
 

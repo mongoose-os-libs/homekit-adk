@@ -292,11 +292,6 @@ typedef struct {
     HAPIPEventNotificationRef* _Nullable eventNotifications;
 
     /**
-     * The maximum number of events this session can handle.
-     */
-    size_t maxEventNotifications;
-
-    /**
      * The number of subscribed events on this session.
      */
     size_t numEventNotifications;
