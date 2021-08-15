@@ -58,11 +58,13 @@ static void hap_setup_response(struct mg_rpc_request_info* ri, const char* setup
             ri, "{code: %Q, id: %Q, url: %Q}", setup_code, g_hap_setup_id.stringValue, payload.stringValue);
 }
 
-static bool set_salt_and_verfier(const char* salt, const char* verifier, int config_level) {
+static bool set_salt_and_verfier(const char* salt, const char* verifier) {
 
     struct mgos_config* cfg = (struct mgos_config*) calloc(1, sizeof(*cfg));
 
-    if (!mgos_sys_config_load_level(cfg, (enum mgos_config_level) config_level)) {
+    enum mgos_config_level config_level = (enum mgos_config_level) MGOS_HAP_SIMPLE_CONFIG_LEVEL;
+
+    if (!mgos_sys_config_load_level(cfg, config_level)) {
         LOG(LL_ERROR, ("failed to load config"));
         goto out;
     }
@@ -71,7 +73,7 @@ static bool set_salt_and_verfier(const char* salt, const char* verifier, int con
     mgos_conf_set_str(&cfg->hap.verifier, verifier);
 
     char* msg = NULL;
-    if (!mgos_sys_config_save_level(cfg, (enum mgos_config_level) config_level, false, &msg)) {
+    if (!mgos_sys_config_save_level(cfg, config_level, false, &msg)) {
         LOG(LL_ERROR, ("error saving config: %s", (msg ? msg : "")));
         free(msg);
         goto out;
@@ -88,6 +90,10 @@ out:
     return true;
 }
 
+bool mgos_hap_config_reset(void) {
+    return set_salt_and_verfier(NULL, NULL);
+}
+
 static void mgos_hap_setup_handler(
         struct mg_rpc_request_info* ri,
         void* cb_arg,
@@ -95,11 +101,10 @@ static void mgos_hap_setup_handler(
         struct mg_str args) {
     char *code = NULL, *id = NULL;
     char *salt = NULL, *verifier = NULL;
-    int config_level = 2;
     bool start_server = true;
     HAPSetupInfo setupInfo;
 
-    json_scanf(args.p, args.len, ri->args_fmt, &code, &id, &salt, &verifier, &config_level, &start_server);
+    json_scanf(args.p, args.len, ri->args_fmt, &code, &id, &salt, &verifier, &start_server);
 
     if (code != NULL && (salt == NULL && verifier == NULL)) {
         if (strcmp(code, "RANDOMCODE") == 0) {
@@ -150,7 +155,7 @@ static void mgos_hap_setup_handler(
         }
     }
 
-    if (!set_salt_and_verfier(salt, verifier, config_level)) {
+    if (!set_salt_and_verfier(salt, verifier)) {
         mg_rpc_send_errorf(ri, 500, "failed to set code");
         ri = NULL;
         goto out;
@@ -216,7 +221,7 @@ static void stop_and_reset(void* arg) {
             if (ctx->reset_code) {
                 LOG(LL_INFO, ("Resetting code"));
                 // How can we determine the right level?
-                if (!set_salt_and_verfier(NULL, NULL, 2)) {
+                if (!mgos_hap_config_reset()) {
                     res = false;
                 }
             }
@@ -288,7 +293,7 @@ void mgos_hap_add_rpc_service_cb(
     mg_rpc_add_handler(
             mgos_rpc_get_global(),
             "HAP.Setup",
-            "{code: %Q, id: %Q, salt: %Q, verifier: %Q, config_level: %d, start_server: %B}",
+            "{code: %Q, id: %Q, salt: %Q, verifier: %Q, start_server: %B}",
             mgos_hap_setup_handler,
             NULL);
     mg_rpc_add_handler(

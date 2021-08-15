@@ -107,6 +107,7 @@ bool mgos_hap_setup_info_from_string(
 
 #ifdef MGOS_HAP_SIMPLE_CONFIG
 bool mgos_hap_config_valid(void);
+bool mgos_hap_config_reset(void);
 
 #ifdef MGOS_HAVE_RPC_COMMON
 // Simple case: only one primary accessory, constant.

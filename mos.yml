@@ -68,6 +68,7 @@ conds:
         - ["hap.verifier", "s", "", {"title": "Device verifier"}]
       cdefs:
         MGOS_HAP_SIMPLE_CONFIG: 1
+        MGOS_HAP_SIMPLE_CONFIG_LEVEL: 2  # Config level to use for HAP info.
 
   - when: build_vars.MGOS_HAP_IP == "1"
     apply:
