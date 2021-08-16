@@ -262,4 +262,10 @@ void HAPPlatformKeyValueStoreCreate(
     keyValueStore->ctx = static_cast<void*>(new KVStore(options->fileName));
 }
 
+void HAPPlatformKeyValueStoreRelease(HAPPlatformKeyValueStoreRef keyValueStore) {
+    auto* kvs = static_cast<KVStore*>(keyValueStore->ctx);
+    keyValueStore->ctx = nullptr;
+    delete (kvs);
+}
+
 } // extern "C"

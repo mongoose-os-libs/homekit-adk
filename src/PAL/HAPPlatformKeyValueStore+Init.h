@@ -65,6 +65,13 @@ void HAPPlatformKeyValueStoreCreate(
         HAPPlatformKeyValueStoreRef keyValueStore,
         const HAPPlatformKeyValueStoreOptions* options);
 
+/**
+ * Releases the resources associated with the key-value store.
+ *
+ * @param[out] keyValueStore        Pointer to a previously initialized HAPPlatformKeyValueStore structure.
+ */
+void HAPPlatformKeyValueStoreRelease(HAPPlatformKeyValueStoreRef keyValueStore);
+
 #if __has_feature(nullability)
 #pragma clang assume_nonnull end
 #endif
