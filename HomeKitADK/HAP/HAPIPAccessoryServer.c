@@ -3611,8 +3611,10 @@ static void WriteOutboundData(HAPIPSessionDescriptor* session) {
             } else if (session->accessorySerializationIsInProgress) {
                 handle_accessory_serialization(session);
             } else {
-                HAPIPByteBufferClear(b);
                 handle_output_completion(session);
+            }
+            if (session->state == kHAPIPSessionState_Reading) {
+                HAPIPByteBufferClear(b);
             }
         }
     }
