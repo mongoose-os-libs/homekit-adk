@@ -20,16 +20,16 @@
 
 #include <stdio.h>
 
-#include <map>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 
-#include "mgos.h"
+#include "mgos.hpp"
 
 class KVStore {
 public:
     explicit KVStore(const char* fileName);
+    ~KVStore();
     HAPError
             Get(HAPPlatformKeyValueStoreDomain domain,
                 HAPPlatformKeyValueStoreKey key,
@@ -41,8 +41,9 @@ public:
             Set(HAPPlatformKeyValueStoreDomain domain,
                 HAPPlatformKeyValueStoreKey key,
                 const void* bytes,
-                size_t numBytes);
-    HAPError Remove(HAPPlatformKeyValueStoreDomain domain, HAPPlatformKeyValueStoreKey key);
+                size_t numBytes,
+                bool save = true);
+    HAPError Remove(HAPPlatformKeyValueStoreDomain domain, HAPPlatformKeyValueStoreKey key, bool save = true);
     HAPError Enumerate(
             HAPPlatformKeyValueStoreRef keyValueStore,
             HAPPlatformKeyValueStoreDomain domain,
@@ -51,12 +52,39 @@ public:
     HAPError PurgeDomain(HAPPlatformKeyValueStoreDomain domain);
 
 private:
+    struct Item {
+        Item* next;
+        HAPPlatformKeyValueStoreDomain dom;
+        HAPPlatformKeyValueStoreKey key;
+        uint16_t len;
+        uint8_t data[];
+
+        static Item*
+                New(HAPPlatformKeyValueStoreDomain domain,
+                    HAPPlatformKeyValueStoreKey key,
+                    const void* data,
+                    uint8_t len) {
+            Item* itm = reinterpret_cast<Item*>(new uint8_t[sizeof(Item) + len]);
+            itm->next = nullptr;
+            itm->dom = domain;
+            itm->key = key;
+            itm->len = len;
+            std::memcpy(itm->data, data, len);
+            return itm;
+        }
+
+        static void Delete(Item* itm) {
+            delete[] reinterpret_cast<uint8_t*>(itm);
+        }
+    };
+
     static uint16_t KVSKey(HAPPlatformKeyValueStoreDomain domain, HAPPlatformKeyValueStoreKey key);
     void Load();
+    void Clear();
     HAPError Save() const;
 
     const std::string fileName_;
-    std::map<uint16_t, std::string> kvs_;
+    Item* items_ = nullptr;
 };
 
 KVStore::KVStore(const char* fileName)
@@ -64,7 +92,22 @@ KVStore::KVStore(const char* fileName)
     Load();
 }
 
+KVStore::~KVStore() {
+    Clear();
+}
+
+void KVStore::Clear() {
+    Item *itm = items_, *next;
+    while (itm != nullptr) {
+        next = itm->next;
+        Item::Delete(itm);
+        itm = next;
+    }
+    items_ = nullptr;
+}
+
 void KVStore::Load() {
+    Clear();
     void* h = NULL;
     size_t size = 0;
     char* data = cs_read_file(fileName_.c_str(), &size);
@@ -77,12 +120,8 @@ void KVStore::Load() {
             rename(tmpFileName.c_str(), fileName_.c_str());
         }
     }
-    if (data == NULL) {
-        LOG(LL_WARN, ("No KVStore data"));
-        goto out;
-    }
-
-    kvs_.clear();
+    mgos::ScopedCPtr data_owner(data);
+    int num_keys = 0;
     struct json_token key, val;
     while ((h = json_next_key(data, size, h, "", &key, &val)) != NULL) {
         char* v = NULL;
@@ -94,15 +133,14 @@ void KVStore::Load() {
         val.ptr--;
         val.len += 2;
         if (json_scanf(val.ptr - 1, val.len + 2, "%V", &v, &vs) == 1) {
-            kvs_[k] = std::string(v, vs);
+            HAPPlatformKeyValueStoreDomain dd = (HAPPlatformKeyValueStoreDomain)(k >> 8);
+            HAPPlatformKeyValueStoreKey kk = (HAPPlatformKeyValueStoreKey) k;
+            Set(dd, kk, v, vs, false /* save */);
+            num_keys++;
             free(v);
         }
     }
-
-    LOG(LL_DEBUG, ("Loaded %d keys from %s", (int) kvs_.size(), fileName_.c_str()));
-
-out:
-    free(data);
+    LOG(LL_DEBUG, ("Loaded %d keys from %s ss %d", num_keys, fileName_.c_str(), (int) sizeof(Item)));
 }
 
 HAPError KVStore::Save() const {
@@ -116,13 +154,14 @@ HAPError KVStore::Save() const {
     struct json_out out;
     out = JSON_OUT_FILE(fp);
     int num;
-    num = 0;
+    const Item* itm;
     json_printf(&out, "{");
-    for (auto it = kvs_.begin(); it != kvs_.end(); it++, num++) {
+    for (itm = items_, num = 0; itm != nullptr; itm = itm->next, num++) {
         if (num != 0) {
             json_printf(&out, ",");
         }
-        if (json_printf(&out, "\n  \"%d\": %V", it->first, it->second.data(), (int) it->second.size()) < 0) {
+        uint16_t fkey = ((((uint16_t) itm->dom) << 8) | ((uint16_t) itm->key));
+        if (json_printf(&out, "\n  \"%u\": %V", fkey, &itm->data[0], itm->len) < 0) {
             goto out;
         }
     }
@@ -138,8 +177,9 @@ HAPError KVStore::Save() const {
     err = kHAPError_None;
 
 out:
-    if (fp != NULL)
+    if (fp != NULL) {
         fclose(fp);
+    }
     return err;
 }
 
@@ -155,14 +195,15 @@ HAPError KVStore::Get(
         size_t maxBytes,
         size_t* _Nullable numBytes,
         bool* found) const {
-    auto it = kvs_.find(KVSKey(domain, key));
-    if (it == kvs_.end()) {
-        *found = false;
-        *numBytes = 0;
-    } else {
-        *numBytes = std::min(it->second.size(), maxBytes);
-        std::memcpy(bytes, it->second.data(), *numBytes);
+    *found = false;
+    for (const Item* itm = items_; itm != nullptr; itm = itm->next) {
+        if (itm->dom != domain || itm->key != key) {
+            continue;
+        }
+        *numBytes = std::min((size_t) itm->len, maxBytes);
+        std::memcpy(bytes, &itm->data[0], *numBytes);
         *found = true;
+        break;
     }
     return kHAPError_None;
 }
@@ -171,14 +212,47 @@ HAPError KVStore::Set(
         HAPPlatformKeyValueStoreDomain domain,
         HAPPlatformKeyValueStoreKey key,
         const void* bytes,
-        size_t numBytes) {
-    kvs_[KVSKey(domain, key)] = std::string(static_cast<const char*>(bytes), numBytes);
-    return Save();
+        size_t numBytes,
+        bool save) {
+    Item *prev = nullptr, *itm = items_, *next = nullptr;
+    while (itm != nullptr) {
+        if (itm->dom == domain && itm->key == key) {
+            break;
+        }
+        prev = itm;
+        itm = itm->next;
+    }
+    if (itm != nullptr) {
+        next = itm->next;
+    }
+    if (itm != nullptr) {
+        Item::Delete(itm);
+    }
+    bool changed;
+    if (bytes != nullptr) {
+        itm = Item::New(domain, key, bytes, numBytes);
+        if (itm == nullptr) {
+            return kHAPError_OutOfResources;
+        }
+        changed = true;
+    } else {
+        changed = (itm != nullptr);
+        itm = next;
+        next = nullptr;
+    }
+    if (prev != nullptr) {
+        prev->next = itm;
+    } else {
+        items_ = itm;
+    }
+    if (next != nullptr) {
+        itm->next = next;
+    }
+    return (changed && save ? Save() : kHAPError_None);
 }
 
-HAPError KVStore::Remove(HAPPlatformKeyValueStoreDomain domain, HAPPlatformKeyValueStoreKey key) {
-    size_t numErased = kvs_.erase(KVSKey(domain, key));
-    return (numErased == 0 ? kHAPError_None : Save());
+HAPError KVStore::Remove(HAPPlatformKeyValueStoreDomain domain, HAPPlatformKeyValueStoreKey key, bool save) {
+    return Set(domain, key, nullptr, 0, save);
 }
 
 HAPError KVStore::Enumerate(
@@ -187,13 +261,12 @@ HAPError KVStore::Enumerate(
         HAPPlatformKeyValueStoreEnumerateCallback callback,
         void* _Nullable context) const {
     HAPError err = kHAPError_None;
-    const auto from_it = kvs_.lower_bound(KVSKey(domain, 0x00));
-    const auto to_it = kvs_.lower_bound(KVSKey(domain, 0xff));
-    for (auto it = from_it; it != to_it; it++) {
-        HAPPlatformKeyValueStoreDomain kd = static_cast<HAPPlatformKeyValueStoreDomain>(it->first >> 8);
-        HAPPlatformKeyValueStoreKey kk = static_cast<HAPPlatformKeyValueStoreKey>(it->first);
+    for (const Item* itm = items_; itm != nullptr; itm = itm->next) {
+        if (itm->dom != domain) {
+            continue;
+        }
         bool shouldContinue = true;
-        err = callback(context, keyValueStore, kd, kk, &shouldContinue);
+        err = callback(context, keyValueStore, itm->dom, itm->key, &shouldContinue);
         if (err != kHAPError_None || !shouldContinue) {
             break;
         }
@@ -202,15 +275,22 @@ HAPError KVStore::Enumerate(
 }
 
 HAPError KVStore::PurgeDomain(HAPPlatformKeyValueStoreDomain domain) {
-    const auto from_it = kvs_.lower_bound(KVSKey(domain, 0x00));
-    const auto to_it = kvs_.lower_bound(KVSKey(domain, 0xff));
-    size_t numErased = 0;
-    for (auto it = from_it; it != to_it;) {
-        auto it2 = it++;
-        kvs_.erase(it2);
-        numErased++;
+    bool changed = false;
+    while (true) {
+        Item* itm = items_;
+        while (itm != nullptr) {
+            if (itm->dom == domain) {
+                break;
+            }
+            itm = itm->next;
+        }
+        if (itm == nullptr) {
+            break;
+        }
+        Remove(itm->dom, itm->key, false /* save */);
+        changed = true;
     }
-    return (numErased == 0 ? kHAPError_None : Save());
+    return (changed ? Save() : kHAPError_None);
 }
 
 extern "C" {
@@ -265,7 +345,7 @@ void HAPPlatformKeyValueStoreCreate(
 void HAPPlatformKeyValueStoreRelease(HAPPlatformKeyValueStoreRef keyValueStore) {
     auto* kvs = static_cast<KVStore*>(keyValueStore->ctx);
     keyValueStore->ctx = nullptr;
-    delete (kvs);
+    delete kvs;
 }
 
 } // extern "C"
