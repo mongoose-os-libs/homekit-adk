@@ -19,6 +19,8 @@
 
 #include "mgos.h"
 
+#include "HAPAccessorySetup.h"
+
 void HAPPlatformAccessorySetupLoadSetupInfo(HAPPlatformAccessorySetupRef accessorySetup, HAPSetupInfo* setupInfo) {
     struct mgos_hap_load_setup_info_arg arg = {
         .accessorySetup = accessorySetup,
@@ -123,14 +125,15 @@ static void mgos_hap_load_setup_info_cb(int ev, void* ev_data, void* userdata) {
     (void) userdata;
 }
 
-HAPSetupID g_hap_setup_id;
-
 static void mgos_hap_load_setup_id_cb(int ev, void* ev_data, void* userdata) {
     struct mgos_hap_load_setup_id_arg* arg = (struct mgos_hap_load_setup_id_arg*) ev_data;
-    if (g_hap_setup_id.stringValue[0] == '\0')
+    const char* setup_id = mgos_sys_config_get_hap_setup_id();
+    if (mgos_conf_str_empty(setup_id) || !HAPAccessorySetupIsValidSetupID(setup_id)) {
+        *arg->valid = false;
         return;
+    }
     *arg->valid = true;
-    *arg->setupID = g_hap_setup_id;
+    memcpy(arg->setupID->stringValue, setup_id, sizeof(arg->setupID->stringValue));
     (void) ev;
     (void) userdata;
 }

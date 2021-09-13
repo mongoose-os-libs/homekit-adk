@@ -4,8 +4,7 @@
 // you may not use this file except in compliance with the License.
 // See [CONTRIBUTORS.md] for the list of HomeKit ADK project authors.
 
-#ifndef HAP_PLATFORM_MFI_TOKEN_AUTH_INIT_H
-#define HAP_PLATFORM_MFI_TOKEN_AUTH_INIT_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,49 +16,13 @@ extern "C" {
 #pragma clang assume_nonnull begin
 #endif
 
-/**@file
- * Software Token provider.
- *
- * The linked key-value store needs to be provisioned with software token information
- * before this implementation may be used. Please refer to the Provision tool.
- *
- * **Example**
-
-   @code{.c}
-
-   // Get dependencies.
-   HAPPlatformKeyValueStoreRef keyValueStore;
-
-   // Allocate Software Token provider.
-   static HAPPlatformMFiTokenAuth mfiTokenAuth;
-
-   // Initialize Software Token provider.
-   HAPPlatformMFiTokenAuthCreate(&mfiTokenAuth,
-       &(const HAPPlatformMFiTokenAuthOptions) {
-           .keyValueStore = keyValueStore
-       });
-
-   @endcode
- */
-
-/**
- * Software token provider initialization options.
- */
 typedef struct {
-    /**
-     * Key-value store.
-     */
-    HAPPlatformKeyValueStoreRef keyValueStore;
+    uint8_t dummy;
 } HAPPlatformMFiTokenAuthOptions;
 
-/**
- * Software Token provider.
- */
 struct HAPPlatformMFiTokenAuth {
-    // Opaque type. Do not access the instance fields directly.
-    /**@cond */
+    uint8_t dummy;
     HAPPlatformKeyValueStoreRef keyValueStore;
-    /**@endcond */
 };
 
 /**
@@ -88,6 +51,4 @@ bool HAPPlatformMFiTokenAuthIsProvisioned(HAPPlatformMFiTokenAuthRef mfiTokenAut
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

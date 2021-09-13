@@ -66,6 +66,9 @@ conds:
         - ["hap", "o", {"title": "HAP settings"}]
         - ["hap.salt", "s", "", {"title": "Device verifier salt"}]
         - ["hap.verifier", "s", "", {"title": "Device verifier"}]
+        - ["hap.setup_id", "s", "", {"title": "Setup ID"}]
+        - ["hap.mfi_uuid", "s", "", {"title": "MFi UUID, in RFC 4122 representation (8-4-4-4-12)"}]
+        - ["hap.mfi_token", "s", "", {"title": "MFi token, Base64"}]
       cdefs:
         MGOS_HAP_SIMPLE_CONFIG: 1
         MGOS_HAP_SIMPLE_CONFIG_LEVEL: 2  # Config level to use for HAP info.
