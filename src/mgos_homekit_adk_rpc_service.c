@@ -57,10 +57,7 @@ static void hap_setup_response(struct mg_rpc_request_info* ri, const char* setup
     mg_rpc_send_responsef(ri, "{code: %Q, id: %Q, url: %Q}", setup_code, setup_id, payload.stringValue);
 }
 
-#define SET_SETUP_INFO (1 << 0)
-#define SET_SETUP_ID (1 << 2)
-#define SET_MFI_AUTH (1 << 3)
-static bool set_hap_config(
+bool mgos_hap_config_set(
         const char* salt,
         const char* verifier,
         const char* setup_id,
@@ -77,14 +74,14 @@ static bool set_hap_config(
         goto out;
     }
 
-    if ((flags & SET_SETUP_INFO) != 0) {
+    if ((flags & MGOS_HAP_CONFIG_SET_SETUP_INFO) != 0) {
         mgos_conf_set_str(&cfg->hap.salt, salt);
         mgos_conf_set_str(&cfg->hap.verifier, verifier);
     }
-    if ((flags & SET_SETUP_ID) != 0) {
+    if ((flags & MGOS_HAP_CONFIG_SET_SETUP_ID) != 0) {
         mgos_conf_set_str(&cfg->hap.setup_id, setup_id);
     }
-    if ((flags & SET_MFI_AUTH) != 0) {
+    if ((flags & MGOS_HAP_CONFIG_SET_MFI_AUTH) != 0) {
         mgos_conf_set_str(&cfg->hap.mfi_uuid, mfi_uuid);
         mgos_conf_set_str(&cfg->hap.mfi_token, mfi_token);
     }
@@ -100,14 +97,14 @@ static bool set_hap_config(
     free(cfg);
     cfg = NULL;
 
-    if ((flags & SET_SETUP_INFO) != 0) {
+    if ((flags & MGOS_HAP_CONFIG_SET_SETUP_INFO) != 0) {
         mgos_sys_config_set_hap_salt(salt);
         mgos_sys_config_set_hap_verifier(verifier);
     }
-    if ((flags & SET_SETUP_ID) != 0) {
+    if ((flags & MGOS_HAP_CONFIG_SET_SETUP_ID) != 0) {
         mgos_sys_config_set_hap_setup_id(setup_id);
     }
-    if ((flags & SET_MFI_AUTH) != 0) {
+    if ((flags & MGOS_HAP_CONFIG_SET_MFI_AUTH) != 0) {
         mgos_sys_config_set_hap_mfi_uuid(mfi_uuid);
         mgos_sys_config_set_hap_mfi_token(mfi_token);
     }
@@ -121,7 +118,8 @@ out:
 }
 
 bool mgos_hap_config_reset(void) {
-    return set_hap_config(NULL, NULL, NULL, NULL, NULL, (SET_SETUP_INFO | SET_SETUP_ID));
+    return mgos_hap_config_set(
+            NULL, NULL, NULL, NULL, NULL, (MGOS_HAP_CONFIG_SET_SETUP_INFO | MGOS_HAP_CONFIG_SET_SETUP_ID));
 }
 
 static void mgos_hap_setup_handler(
@@ -173,19 +171,20 @@ static void mgos_hap_setup_handler(
         cs_base64_encode(setupInfo.salt, 16, salt, NULL);
         verifier = calloc(1, 512 + 1);
         cs_base64_encode(setupInfo.verifier, 384, verifier, NULL);
-        set_flags |= SET_SETUP_INFO;
+        set_flags |= MGOS_HAP_CONFIG_SET_SETUP_INFO;
     } else if (code == NULL && (salt != NULL && verifier != NULL)) {
         if (!mgos_hap_setup_info_from_string(&setupInfo, salt, verifier)) {
             mg_rpc_send_errorf(ri, 400, "invalid %s", "salt + verifier");
             ri = NULL;
             goto out;
         }
-        set_flags |= SET_SETUP_INFO;
+        set_flags |= MGOS_HAP_CONFIG_SET_SETUP_INFO;
     }
 
     if (id != NULL) {
+        memset(&setup_id, 0, sizeof(setup_id));
         if (strlen(id) == 0) {
-            memset(&setup_id, 0, sizeof(setup_id));
+            // Nothing, just reset.
         } else if (strcmp(id, "RANDOMID") == 0) {
             HAPAccessorySetupGenerateRandomSetupID(&setup_id);
         } else if (HAPAccessorySetupIsValidSetupID(id)) {
@@ -195,11 +194,11 @@ static void mgos_hap_setup_handler(
             ri = NULL;
             goto out;
         }
-        set_flags |= SET_SETUP_ID;
+        set_flags |= MGOS_HAP_CONFIG_SET_SETUP_ID;
     }
 
     if (mfi_uuid != NULL && mfi_token != NULL) {
-        set_flags |= SET_MFI_AUTH;
+        set_flags |= MGOS_HAP_CONFIG_SET_MFI_AUTH;
     }
 
     if (set_flags == 0) {
@@ -208,7 +207,7 @@ static void mgos_hap_setup_handler(
         goto out;
     }
 
-    if (!set_hap_config(salt, verifier, setup_id.stringValue, mfi_uuid, mfi_token, set_flags)) {
+    if (!mgos_hap_config_set(salt, verifier, setup_id.stringValue, mfi_uuid, mfi_token, set_flags)) {
         mg_rpc_send_errorf(ri, 500, "failed to set code");
         ri = NULL;
         goto out;

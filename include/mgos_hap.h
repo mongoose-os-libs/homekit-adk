@@ -106,6 +106,16 @@ bool mgos_hap_setup_info_from_string(
         const char* _Nonnull verifier);
 
 #ifdef MGOS_HAP_SIMPLE_CONFIG
+#define MGOS_HAP_CONFIG_SET_SETUP_INFO (1 << 0)
+#define MGOS_HAP_CONFIG_SET_SETUP_ID (1 << 2)
+#define MGOS_HAP_CONFIG_SET_MFI_AUTH (1 << 3)
+bool mgos_hap_config_set(
+        const char* _Nullable salt,
+        const char* _Nullable verifier,
+        const char* _Nullable setup_id,
+        const char* _Nullable mfi_uuid,
+        const char* _Nullable mfi_token,
+        uint8_t flags);
 bool mgos_hap_config_valid(void);
 bool mgos_hap_config_reset(void);
 

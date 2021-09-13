@@ -22,6 +22,7 @@
 #include "HAPPlatformMFiTokenAuth+Init.h"
 
 #include "mgos.h"
+#include "mgos_hap.h"
 
 void HAPPlatformMFiTokenAuthCreate(
         HAPPlatformMFiTokenAuthRef mfiTokenAuth,
@@ -117,11 +118,11 @@ HAPError HAPPlatformMFiTokenAuthUpdate(
 
     cs_base64_encode(mfiTokenBytes, numMFiTokenBytes, token_str, NULL);
 
-    LOG(LL_INFO, ("Updated token: %s", token_str));
+    bool res = mgos_hap_config_set(
+            NULL, NULL, NULL, mgos_sys_config_get_hap_mfi_uuid(), token_str, MGOS_HAP_CONFIG_SET_MFI_AUTH);
 
-    mgos_sys_config_set_hap_mfi_token(token_str);
+    LOG(LL_INFO, ("Updated device token: %s", token_str));
 
     free(token_str);
-
-    return kHAPError_None;
+    return (res ? kHAPError_None : kHAPError_Unknown);
 }
