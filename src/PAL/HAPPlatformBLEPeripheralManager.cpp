@@ -432,9 +432,6 @@ namespace hap {
             }
             case MGOS_BT_GATTS_EV_READ: {
                 struct mgos_bt_gatts_read_arg* arg = (struct mgos_bt_gatts_read_arg*) ev_arg;
-                if (arg->offset != 0) {
-                    return MGOS_BT_GATT_STATUS_INVALID_OFFSET;
-                }
                 uint16_t handle = GetHandleByUUID(&arg->svc_uuid, &arg->char_uuid);
                 if (handle == 0) {
                     return MGOS_BT_GATT_STATUS_INVALID_HANDLE;
@@ -468,9 +465,6 @@ namespace hap {
             }
             case MGOS_BT_GATTS_EV_WRITE: {
                 struct mgos_bt_gatts_write_arg* arg = (struct mgos_bt_gatts_write_arg*) ev_arg;
-                if (arg->offset != 0) {
-                    return MGOS_BT_GATT_STATUS_INVALID_OFFSET;
-                }
                 if (arg->data.len > kHAPPlatformBLEPeripheralManager_MaxAttributeBytes) {
                     return MGOS_BT_GATT_STATUS_INVALID_ATT_VAL_LENGTH;
                 }
