@@ -39,22 +39,26 @@ static void mgos_hap_stop_and_reset_server(
 
 static void hap_setup_response(struct mg_rpc_request_info* ri, const char* setup_code, const char* setup_id) {
     HAPAccessoryServer* server = (HAPAccessoryServer*) s_server;
-    if (setup_code == NULL || setup_id == NULL || server == NULL || server->primaryAccessory == NULL) {
+    if (setup_code == NULL || server == NULL || server->primaryAccessory == NULL) {
         mg_rpc_send_responsef(ri, "{}");
         return;
     }
-    HAPSetupCode sc = { 0 };
-    strncpy(sc.stringValue, setup_code, sizeof(sc.stringValue) - 1);
-    HAPSetupID si = { 0 };
-    strncpy(si.stringValue, setup_id, sizeof(si.stringValue) - 1);
-    HAPSetupPayload payload = { 0 };
-    HAPAccessorySetupSetupPayloadFlags flags = {
-        .isPaired = false,
-        .ipSupported = (server->transports.ip != NULL),
-        .bleSupported = (server->transports.ble != NULL),
-    };
-    HAPAccessorySetupGetSetupPayload(&payload, &sc, &si, flags, server->primaryAccessory->category);
-    mg_rpc_send_responsef(ri, "{code: %Q, id: %Q, url: %Q}", setup_code, setup_id, payload.stringValue);
+    if (setup_id != NULL) {
+        HAPSetupCode sc = { 0 };
+        strncpy(sc.stringValue, setup_code, sizeof(sc.stringValue) - 1);
+        HAPSetupID si = { 0 };
+        strncpy(si.stringValue, setup_id, sizeof(si.stringValue) - 1);
+        HAPSetupPayload payload = { 0 };
+        HAPAccessorySetupSetupPayloadFlags flags = {
+            .isPaired = false,
+            .ipSupported = (server->transports.ip != NULL),
+            .bleSupported = (server->transports.ble != NULL),
+        };
+        HAPAccessorySetupGetSetupPayload(&payload, &sc, &si, flags, server->primaryAccessory->category);
+        mg_rpc_send_responsef(ri, "{code: %Q, id: %Q, url: %Q}", setup_code, setup_id, payload.stringValue);
+    } else {
+        mg_rpc_send_responsef(ri, "{code: %Q}", setup_code);
+    }
 }
 
 bool mgos_hap_config_set(
@@ -350,15 +354,15 @@ void mgos_hap_add_rpc_service_cb(
     s_server = server;
     s_stop_cb = server_stop_cb;
     s_start_cb = server_start_cb;
+    struct mg_rpc* c = mgos_rpc_get_global();
     mg_rpc_add_handler(
-            mgos_rpc_get_global(),
+            c,
             "HAP.Setup",
             "{code: %Q, id: %Q, salt: %Q, verifier: %Q, uuid: %Q, token: %Q, "
             "start_server: %B, reset_server: %B}",
             mgos_hap_setup_handler,
             NULL);
-    mg_rpc_add_handler(
-            mgos_rpc_get_global(), "HAP.Reset", "{reset_server: %B, reset_code: %B}", mgos_hap_reset_handler, NULL);
+    mg_rpc_add_handler(c, "HAP.Reset", "{reset_server: %B, reset_code: %B}", mgos_hap_reset_handler, NULL);
 }
 
 #endif // defined(MGOS_HAVE_RPC_COMMON) && defined(MGOS_HAP_SIMPLE_CONFIG)
