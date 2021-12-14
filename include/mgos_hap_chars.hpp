@@ -240,7 +240,7 @@ public:
             WriteHandler write_handler = nullptr,
             const char* debug_description = nullptr)
         : ScalarCharacteristic(
-                  kHAPCharacteristicFormat_UInt8,
+                  kHAPCharacteristicFormat_Float,
                   iid,
                   type,
                   read_handler,
