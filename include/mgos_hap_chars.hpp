@@ -396,8 +396,8 @@ HAPError ReadBool(
         HAPAccessoryServerRef* server UNUSED_ARG,
         const HAPBoolCharacteristicReadRequest* request UNUSED_ARG,
         bool* value,
-        const T& value_src) {
-    *value = static_cast<bool>(value_src);
+        const T* value_src) {
+    *value = static_cast<bool>(*value_src);
     return kHAPError_None;
 }
 
@@ -406,8 +406,8 @@ HAPError
         ReadInt(HAPAccessoryServerRef* server UNUSED_ARG,
                 const HAPIntCharacteristicReadRequest* request UNUSED_ARG,
                 int* value,
-                const T& value_src) {
-    *value = static_cast<int>(value_src);
+                const T* value_src) {
+    *value = static_cast<int>(*value_src);
     return kHAPError_None;
 }
 
@@ -416,8 +416,8 @@ HAPError ReadUInt8(
         HAPAccessoryServerRef* server UNUSED_ARG,
         const HAPUInt8CharacteristicReadRequest* request UNUSED_ARG,
         uint8_t* value,
-        const T& value_src) {
-    *value = static_cast<uint8_t>(value_src);
+        const T* value_src) {
+    *value = static_cast<uint8_t>(*value_src);
     return kHAPError_None;
 }
 
@@ -426,8 +426,8 @@ HAPError ReadUInt16(
         HAPAccessoryServerRef* server UNUSED_ARG,
         const HAPUInt16CharacteristicReadRequest* request UNUSED_ARG,
         uint16_t* value,
-        const T& value_src) {
-    *value = static_cast<uint16_t>(value_src);
+        const T* value_src) {
+    *value = static_cast<uint16_t>(*value_src);
     return kHAPError_None;
 }
 
@@ -436,8 +436,8 @@ HAPError ReadUInt32(
         HAPAccessoryServerRef* server UNUSED_ARG,
         const HAPUInt32CharacteristicReadRequest* request UNUSED_ARG,
         uint32_t* value,
-        const T& value_src) {
-    *value = static_cast<uint32_t>(value_src);
+        const T* value_src) {
+    *value = static_cast<uint32_t>(*value_src);
     return kHAPError_None;
 }
 
@@ -446,8 +446,8 @@ HAPError ReadUInt64(
         HAPAccessoryServerRef* server UNUSED_ARG,
         const HAPUInt64CharacteristicReadRequest* request UNUSED_ARG,
         uint64_t* value,
-        const T& value_src) {
-    *value = static_cast<uint64_t>(value_src);
+        const T* value_src) {
+    *value = static_cast<uint64_t>(*value_src);
     return kHAPError_None;
 }
 
@@ -456,8 +456,8 @@ HAPError ReadFloat(
         HAPAccessoryServerRef* server UNUSED_ARG,
         const HAPFloatCharacteristicReadRequest* request UNUSED_ARG,
         float* value,
-        const T& value_src) {
-    *value = static_cast<float>(value_src);
+        const T* value_src) {
+    *value = static_cast<float>(*value_src);
     return kHAPError_None;
 }
 
