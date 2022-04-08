@@ -461,6 +461,56 @@ HAPError ReadFloat(
     return kHAPError_None;
 }
 
+class TLV8Characteristic : public Characteristic {
+public:
+    typedef std::function<HAPError(
+            HAPAccessoryServerRef* server,
+            const HAPTLV8CharacteristicReadRequest* request,
+            HAPTLVWriterRef* responseWriter,
+            void* _Nullable context)>
+            ReadHandler;
+    typedef std::function<HAPError(
+            HAPAccessoryServerRef* server,
+            const HAPTLV8CharacteristicWriteRequest* request,
+            HAPTLVReaderRef* responseReader,
+            void* _Nullable context)>
+            WriteHandler;
+
+    TLV8Characteristic(
+            uint16_t iid,
+            const HAPUUID* type,
+            ReadHandler read_handler,
+            bool supports_notification,
+            WriteHandler write_handler = nullptr,
+            bool write_response = false,
+            bool control_point = false,
+            const char* debug_description = nullptr);
+    virtual ~TLV8Characteristic();
+
+private:
+    static HAPError HandleReadCB(
+            HAPAccessoryServerRef* server,
+            const HAPTLV8CharacteristicReadRequest* request,
+            HAPTLVWriterRef* responseWriter,
+            void* context) {
+        auto* hci = reinterpret_cast<const HAPCharacteristicWithInstance*>(request->characteristic);
+        auto* c = static_cast<const TLV8Characteristic*>(hci->inst);
+        return const_cast<TLV8Characteristic*>(c)->read_handler_(server, request, responseWriter, context);
+    };
+    static HAPError HandleWriteCB(
+            HAPAccessoryServerRef* server,
+            const HAPTLV8CharacteristicWriteRequest* request,
+            HAPTLVReaderRef* responseReader,
+            void* context) {
+        auto* hci = reinterpret_cast<const HAPCharacteristicWithInstance*>(request->characteristic);
+        auto* c = static_cast<const TLV8Characteristic*>(hci->inst);
+        return const_cast<TLV8Characteristic*>(c)->write_handler_(server, request, responseReader, context);
+    }
+
+    const ReadHandler read_handler_;
+    const WriteHandler write_handler_;
+};
+
 } // namespace hap
 } // namespace mgos
 

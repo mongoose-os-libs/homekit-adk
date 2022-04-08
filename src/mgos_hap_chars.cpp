@@ -108,5 +108,32 @@ HAPError StringCharacteristic::HandleReadCB(
     return kHAPError_None;
 }
 
+TLV8Characteristic::TLV8Characteristic(
+        uint16_t iid,
+        const HAPUUID* type,
+        ReadHandler read_handler,
+        bool supports_notification,
+        WriteHandler write_handler,
+        bool write_response,
+        bool control_point,
+        const char* debug_description)
+    : Characteristic(iid, kHAPCharacteristicFormat_TLV8, type, debug_description)
+    , read_handler_(read_handler)
+    , write_handler_(write_handler) {
+    HAPTLV8Characteristic* c = &hap_char_.char_.tlv8;
+    c->properties.readable = true;
+    c->properties.supportsEventNotification = supports_notification;
+    c->callbacks.handleRead = TLV8Characteristic::HandleReadCB;
+    c->properties.ip.controlPoint = control_point;
+    if (write_handler) {
+        c->properties.writable = true;
+        c->properties.ip.supportsWriteResponse = write_response;
+        c->callbacks.handleWrite = TLV8Characteristic::HandleWriteCB;
+    }
+}
+
+TLV8Characteristic::~TLV8Characteristic() {
+}
+
 } // namespace hap
 } // namespace mgos
