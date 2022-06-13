@@ -78,6 +78,11 @@ Accessory::~Accessory() {
 HAPAccessoryServerRef* Accessory::server() const {
     return server_;
 }
+
+void Accessory::SetIdentifyCB(const IdentifyCB& identify_cb) {
+    identify_cb_ = identify_cb;
+}
+
 void Accessory::set_server(HAPAccessoryServerRef* server) {
     server_ = server;
 }

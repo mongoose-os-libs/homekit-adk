@@ -44,6 +44,7 @@ public:
     void SetName(const std::string& name);
     void SetCategory(HAPAccessoryCategory category);
     void SetSerialNumber(const std::string& sn);
+    void SetIdentifyCB(const IdentifyCB& identify_cb);
 
     void AddService(Service* svc);
     void AddService(std::unique_ptr<Service> svc);
@@ -55,7 +56,7 @@ private:
     static HAPError Identify(HAPAccessoryServerRef* server, const HAPAccessoryIdentifyRequest* request, void* context);
 
     std::string name_;
-    const IdentifyCB identify_cb_;
+    IdentifyCB identify_cb_;
     HAPAccessoryServerRef* server_;
     std::string serial_number_;
 
