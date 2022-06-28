@@ -12,11 +12,9 @@
 // Windows CE 7.0 workaround to serialize the string "/ARM/MSVC/armv7-wince7/".
 #undef armv7
 #endif
+#endif
 #define COMMAND_LINE_STRINGIFY_INNER(X) #X
 #define COMMAND_LINE_STRINGIFY(X)       COMMAND_LINE_STRINGIFY_INNER(X)
-#else
-#define COMMAND_LINE_STRINGIFY(X) X
-#endif
 #endif
 
 HAP_RESULT_USE_CHECK
