@@ -1080,11 +1080,20 @@ bool HAPTLVFormatHaveConflictingTypes(const HAPTLVFormat* format, const HAPTLVFo
 HAP_RESULT_USE_CHECK
 bool HAPTLVFormatIsValid(const HAPTLVFormat* format);
 
+
+#ifdef HAP_TLV_NO_LOG
+/** Maximum supported length of a TLV value's log. */
+#define kHAPTLVValue_MaxLogBytes ((size_t) 0)
+
+/** Maximum supported length of a value's description. */
+#define kHAPTLVValue_MaxDescriptionBytes ((size_t) 0)
+#else
 /** Maximum supported length of a TLV value's log. */
 #define kHAPTLVValue_MaxLogBytes ((size_t) 1023)
 
 /** Maximum supported length of a value's description. */
 #define kHAPTLVValue_MaxDescriptionBytes ((size_t) 255)
+#endif
 
 /**
  * Logs the provided value according to its metadata.
