@@ -1431,7 +1431,7 @@ HAPError HAPPairingPairSetupHandleRead(
             if (err) {
                 HAPAssert(
                         err == kHAPError_Unknown || err == kHAPError_InvalidState || err == kHAPError_OutOfResources ||
-                        kHAPError_Busy);
+                        err == kHAPError_Busy);
                 if (err == kHAPError_Busy)
                     return err;
             } else {
